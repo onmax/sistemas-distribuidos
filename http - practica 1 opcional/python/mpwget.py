@@ -87,16 +87,15 @@ class Mpwget:
         Makes the requests, concatenate object and print status
         """
         for i, resource in enumerate(self.resources):
+            self.resources[i]["content"] = b""
             if self.options["print"]:
                 print("\nFetching '%s'. Total size: %d bytes." % (resource["name"], resource["size"]))
-            content = b""
             for j, req in enumerate(sorted(resource["requests"], key=lambda x: x["offset"])):
                 if self.options["print"]:
                     print("\tPacket %d -> Bytes: %d-%d. Server: %s"
                           % (j+1, req["offset"], req["offset"] + req["partition_size"], req["server"]))
                 headers = {"Range": "bytes=%d-%d" % (req["offset"], req["offset"] + req["partition_size"])}
-                content += reqs.get("%s/%s" % (req["server"], resource["name"]), headers=headers).content
-            self.resources[i]["content"] = content
+                self.resources[i]["content"] += reqs.get("%s/%s" % (req["server"], resource["name"]), headers=headers).content
             if self.options["print"]:
                 print("\tDone!\n\n%s\n" % ('-' * 80))
 
