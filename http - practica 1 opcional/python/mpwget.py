@@ -27,7 +27,7 @@ class Mpwget:
                 self.options["save_resources"] = self.options["save_resources"] or a == '--resources'
                 self.options["save_requests"] = self.options["save_requests"] or a == '--requests'
             elif a[0] == ':':
-                self.servers.append("http://%s" % a[1:] if a[0:5] != "http" else a[1:])
+                self.servers.append("http://%s" % a[1:] if a[1:5] != "http" else a[1:])
             else:
                 self.resources.append({"name": a})
 
@@ -38,12 +38,17 @@ class Mpwget:
         :return: servers: contains all servers given by the user and that are running
         """
         for s in self.servers:
+            print(s)
             try:
                 res = reqs.head(s)
                 if res.status_code != 200:
                     self.servers.remove(s)
             except:
                 self.servers.remove(s)
+
+        if len(self.servers) == 0:
+            print("No hay servidores disponibles")
+            exit(1)
 
     def prepare_requests(self):
         """
@@ -65,6 +70,7 @@ class Mpwget:
         """
 
         for i, resource in enumerate(self.resources):
+            print(self.servers)
             headers = reqs.head("%s/%s" % (self.servers[(i + 1) % len(self.servers)], resource["name"])).headers
             size = int(headers["content-length"])
             partition_size = math.ceil(size / len(self.servers))
