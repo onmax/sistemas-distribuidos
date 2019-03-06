@@ -1,0 +1,4 @@
+./venv/*
+
+# folder used in http
+objects/*

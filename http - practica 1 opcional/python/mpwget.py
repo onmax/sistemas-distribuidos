@@ -8,6 +8,11 @@ class Mpwget:
 
     resources = []
     servers = []
+    options = {
+        "print": False,
+        "save_resources": False,
+        "save_requests": False
+    }
 
     def parser(self, argv):
         """
@@ -17,7 +22,11 @@ class Mpwget:
         d will have: {"servers": ["server1", "server2"], "resources":["obj1","obj2","obj3"]}
         """
         for a in argv:
-            if a[0] == ':':
+            if a[0] == '-':
+                self.options["print"] = self.options["print"] or a == '--print'
+                self.options["save_resources"] = self.options["save_resources"] or a == '--resources'
+                self.options["save_requests"] = self.options["save_requests"] or a == '--requests'
+            elif a[0] == ':':
                 self.servers.append("http://%s" % a[1:] if a[0:5] != "http" else a[1:])
             else:
                 self.resources.append({"name": a})
@@ -36,7 +45,7 @@ class Mpwget:
             except:
                 self.servers.remove(s)
 
-    def get_requests(self):
+    def prepare_requests(self):
         """
             [
                 {
@@ -58,9 +67,10 @@ class Mpwget:
         for i, resource in enumerate(self.resources):
             headers = reqs.head("%s/%s" % (self.servers[(i + 1) % len(self.servers)], resource["name"])).headers
             size = int(headers["content-length"])
-            partition_size = math.ceil(resource["size"] / len(self.servers))
+            partition_size = math.ceil(size / len(self.servers))
 
             self.resources[i] = {
+                "name": self.resources[i]["name"],
                 "size": size,
                 "type": headers["content-type"],
                 "requests": [
@@ -77,22 +87,34 @@ class Mpwget:
         Makes the requests, concatenate object and print status
         """
         for i, resource in enumerate(self.resources):
-            print(resource)
-            print("Fetching '%s'. Total size: %d bytes." % (resource["resource_name"], resource["size"]))
+            if self.options["print"]:
+                print("\nFetching '%s'. Total size: %d bytes." % (resource["name"], resource["size"]))
             content = b""
             for j, req in enumerate(sorted(resource["requests"], key=lambda x: x["offset"])):
-                print("\tPacket %d -> Bytes: %d-%d. Server: %s"
-                      % (j+1, req["offset"], req["offset"] + req["size"], req["server"]))
+                if self.options["print"]:
+                    print("\tPacket %d -> Bytes: %d-%d. Server: %s"
+                          % (j+1, req["offset"], req["offset"] + req["partition_size"], req["server"]))
                 headers = {"Range": "bytes=%d-%d" % (req["offset"], req["offset"] + req["partition_size"])}
-                content += reqs.get("%s/%s" % (req["server"], resource["resource_name"]), headers=headers).content
-            print("\tDone!\n\n%s\n" % ('-' * 80))
+                content += reqs.get("%s/%s" % (req["server"], resource["name"]), headers=headers).content
             self.resources[i]["content"] = content
+            if self.options["print"]:
+                print("\tDone!\n\n%s\n" % ('-' * 80))
 
     def save_resources(self):
-        # Write results in folder
+        # Write results in folder resources
         for o in self.resources:
-            with open('./resources/' + o["resource_name"].split('/')[-1], 'wb') as fd:
-                fd.write(o["content"])
+            try:
+                with open('./resources/' + o["name"].split('/')[-1], 'wb') as fd:
+                    fd.write(o["content"])
+            except:
+                print("%s: Hubo un error al intentar guardar el recurso %s.\n" % "mpwget", o["name"])
+
+    def save_requests(self):
+        try:
+            with open('./requests_made', 'w') as fd:
+                fd.write(self.resources)
+        except:
+            print("%s: Hubo un error al intentar guardar la información de las peticiones.\n" % "mpwget")
 
     def __init__(self, argv):
         # Remove older files or create folder
@@ -103,10 +125,15 @@ class Mpwget:
 
         self.parser(argv)
         self.check_servers()
-        self.get_requests()
+        self.prepare_requests()
         self.make_requests()
 
-        self.save_resources()
+        if self.options["save_resources"]:
+            self.save_resources()
+
+        if self.options["save_requests"]:
+            self.save_requests()
+
 
 
 if __name__ == "__main__":
