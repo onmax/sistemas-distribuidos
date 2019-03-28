@@ -6,46 +6,62 @@
 #include <sys/types.h> 
 #include <sys/wait.h> 
 
+#include <sys/socket.h> 
+#include <stdlib.h> 
+#include <netinet/in.h> 
+#include <arpa/inet.h>
 
+#include <math.h>
+
+#include <netdb.h> 
 
 
 #define MAX_NSERVERS 100
 #define MAX_NRESOURCES 100
+#define MAX_REQUESTS 100
 #define MAX_PATH 200
+#define PORT 8080 
+
+
+struct request
+{
+   char        server_n_path[MAX_PATH];
+   int         range[2];
+};
+
+struct resource
+{
+   struct      request request[MAX_REQUESTS];
+   int         size;
+   char        path[MAX_PATH];
+};
 
 struct resources {
-   int   n;
-   int   sizes[MAX_NRESOURCES];
-   char  paths[MAX_NRESOURCES][MAX_PATH];
-   int   ranges[MAX_NRESOURCES][2];
+   int         n;
+   struct      resource resource[MAX_NRESOURCES];
+};
+
+struct server {
+   int            sockfd;
+   char           url[MAX_PATH*2 + 2];
+   struct hostent *ip;
 };
 
 struct servers {
-   int   n;
-   char  urls[MAX_NSERVERS][MAX_PATH];
+   int         n;
+   struct      server server[MAX_NSERVERS];
 };
 
 typedef struct Data {
-   struct resources  resources;
-   struct servers    servers;
+   struct      resources resources;
+   struct      servers servers;
 } data;
-
-typedef struct Pipeline
-{
-   int sizes[2*MAX_NRESOURCES];
-   int main_size[2];
-   /*
-   int stage3[MAX_NRESOURCES][2];
-   int stage4[MAX_NRESOURCES][MAX_NSERVERS][2];
-   int stage5[MAX_NRESOURCES][2];
-   int stage6[2];
-   */
-} pipeline;
 
 
 void parse_arguments(int argc, char* argv[], data *dp);
 void set_resources_sizes(data *dp);
 int get_size(char* server, char* path);
+void create_sockets(data *dp);
 
 void parse_arguments(int argc, char* argv[], data *dp)
 {
@@ -56,10 +72,10 @@ void parse_arguments(int argc, char* argv[], data *dp)
    {
       char* tmp = argv[i];
       if(tmp[0] == ':') {
-         strncpy(dp->servers.urls[dp->servers.n], &tmp[1], strlen(tmp) - 1);
+         strncpy(dp->servers.server[dp->servers.n].url, &tmp[1], strlen(tmp) - 1);
          dp->servers.n++;
       } else {
-         strcpy(dp->resources.paths[dp->resources.n], tmp);
+         strcpy(dp->resources.resource[dp->resources.n].path, tmp);
          dp->resources.n++;
       }
    }
@@ -71,7 +87,7 @@ int get_size(char* server, char* path)
    char final_path[MAX_PATH];
    int size;
    if(curl) {
-      snprintf(final_path, sizeof(final_path), "http://%s/~%s", server, path);
+      snprintf(final_path, sizeof(final_path), "%s/~%s", server, path);
       curl_easy_setopt(curl, CURLOPT_URL, final_path);
       curl_easy_setopt(curl, CURLOPT_NOBODY, 1L); /* get us the resource without a body! */
       if(curl_easy_perform(curl) == CURLE_OK) {
@@ -81,48 +97,75 @@ int get_size(char* server, char* path)
    return size;
 }
 
+void set_ips(data *dp)
+{
+   struct hostent *host;
+   for(int i = 0; i < dp->servers.n; i++)
+   {
+      if ((host = gethostbyname(dp->servers.server[0].url)) == NULL) {
+         fprintf(stdout,"ERROR, no such host\n");
+         exit(1);
+      }
+      dp->servers.server[i].ip = host;
+   }
+}
+
 void set_resources_sizes(data *dp)
 {
-   struct Pipeline pipeline;
-   if(pipe(pipeline.main_size))
+   for(int i = 0; i < dp->resources.n; i++)
    {
-      printf("Error pipe");
-      exit(1);
+      char *server = dp->servers.server[i % dp->servers.n].url;
+      char *path = dp->resources.resource[i].path;
+      int full_size = get_size(server, path);
+      dp->resources.resource[i].size = full_size;
+      printf("path: %s/~%s\tsize:%d\n", server, path, dp->resources.resource[i].size);
+
+      float range = ceil(full_size / dp->servers.n);
+      for(int j = 0; j < dp->servers.n; j ++)
+      {
+         float start = j * range;
+         float end   = (j+1) * range - 1;
+         dp->resources.resource[i].request[j].range[0] = (int)start;
+         dp->resources.resource[i].request[j].range[1] = (int)end;
+         
+         char final_path[MAX_PATH*2 + 4];
+         sprintf(final_path, "%s/~%s", dp->servers.server[j].url, path);
+         strcpy(dp->resources.resource[i].request[j].server_n_path, final_path);
+      }
    }
-   switch (fork())
+}
+
+void create_sockets(data *dp)
+{
+   int sockfd; /* Socket (de tipo TCP) para transmision de datos */
+   struct sockaddr_in  server;  /* Direccion TCP servidor */ 
+
+   for(int i = 0; i<dp->resources.n; i++)
    {
-      case -1:
-         printf("Error fork");
+      /* Creacion del socket TCP */
+      fprintf(stdout,"CLIENTE:  Creacion del socket TCP: ");
+      if((sockfd=socket(AF_INET,SOCK_STREAM,0))<0)
+      {
+         fprintf(stdout,"ERROR\n");
          exit(1);
-         break;
-      default:
-         printf("papa\n");
-         int psize;
+      }
+      fprintf(stdout,"OK\n");
 
-         wait(NULL);
-         for(int i=0; i < dp->resources.n;i++)
-         {
-            while(read(pipeline.sizes[2*i], &psize, sizeof(psize))>0)
-               printf("%d", psize);
-         }
-         break;
+      /* Nos conectamos con el servidor */
+      bzero((char*)&server,sizeof(struct sockaddr_in)); /* Pone a 0 la estructura */
+      server.sin_family=AF_INET;
+      server.sin_port=htons(80);
+      server.sin_addr.s_addr = inet_addr("138.100.9.22");
 
-      case 0:
-         for(int i=0; i < dp->resources.n;i++)
-         {
-            int hsize;
-            if(pipe(&pipeline.sizes[2*i]))
-            {
-               printf("Error pipe");
-               exit(1);
-            }
-            hsize = get_size(dp->servers.urls[0], dp->resources.paths[i]);
-            write(pipeline.sizes[2*i+1], &hsize, sizeof(hsize));
-            printf("hijo %d. len: %d\n", i, hsize);
-         }
-         exit(0);
-   } 
-   printf("LOL\n");
+      fprintf(stdout,"CLIENTE:  Conexion al puerto servidor: ");
+      if(connect(sockfd, (struct sockaddr*)&server, sizeof(struct sockaddr_in)) < 0)
+      {
+         fprintf(stdout,"ERROR %d\n",-13);
+         close(sockfd); exit(1);
+      }
+      fprintf(stdout,"OK\n");
+      dp->servers.server[i].sockfd = sockfd;
+   }
 }
 
 
@@ -140,5 +183,7 @@ int main(int argc, char* argv[])
 
 
    set_resources_sizes(&d);
+   create_sockets(&d);
+
    return 0;
 }

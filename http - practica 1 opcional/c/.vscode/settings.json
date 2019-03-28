@@ -1,5 +1,15 @@
 {
     "files.associations": {
-        "string.h": "c"
+        "string.h": "c",
+        "socket.h": "c",
+        "stdio.h": "c",
+        "fcntl.h": "c",
+        "stat.h": "c",
+        "types.h": "c",
+        "in.h": "c",
+        "inet.h": "c",
+        "stdlib.h": "c",
+        "unistd.h": "c",
+        "netdb.h": "c"
     }
 }
