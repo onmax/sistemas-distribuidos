@@ -25,20 +25,21 @@
 
 struct request
 {
-   char        server_n_path[MAX_PATH];
-   int         range[2];
+   unsigned int   sockfd;
+   unsigned int   range[2];
 };
 
 struct resource
 {
-   struct      request request[MAX_REQUESTS];
-   int         size;
-   char        path[MAX_PATH];
+   struct         request request[MAX_REQUESTS];
+   unsigned int   nrequest;
+   unsigned int   size;
+   char           path[MAX_PATH];
 };
 
 struct resources {
-   int         n;
-   struct      resource resource[MAX_NRESOURCES];
+   unsigned int   n;
+   struct         resource resource[MAX_NRESOURCES];
 };
 
 struct server {
@@ -48,18 +49,18 @@ struct server {
 };
 
 struct servers {
-   int         n;
-   struct      server server[MAX_NSERVERS];
+   unsigned int   n;
+   struct         server server[MAX_NSERVERS];
 };
 
 typedef struct Data {
-   struct      resources resources;
-   struct      servers servers;
-} data;
+   struct         resources resources;
+   struct         servers servers;
+} data;  
 
 
 void parse_arguments(int argc, char* argv[], data *dp);
-void set_resources_sizes(data *dp);
+void set_requests(data *dp);
 int get_size(char* server, char* path);
 void create_sockets(data *dp);
 
@@ -110,31 +111,6 @@ void set_ips(data *dp)
    }
 }
 
-void set_resources_sizes(data *dp)
-{
-   for(int i = 0; i < dp->resources.n; i++)
-   {
-      char *server = dp->servers.server[i % dp->servers.n].url;
-      char *path = dp->resources.resource[i].path;
-      int full_size = get_size(server, path);
-      dp->resources.resource[i].size = full_size;
-      printf("path: %s/~%s\tsize:%d\n", server, path, dp->resources.resource[i].size);
-
-      float range = ceil(full_size / dp->servers.n);
-      for(int j = 0; j < dp->servers.n; j ++)
-      {
-         float start = j * range;
-         float end   = (j+1) * range - 1;
-         dp->resources.resource[i].request[j].range[0] = (int)start;
-         dp->resources.resource[i].request[j].range[1] = (int)end;
-         
-         char final_path[MAX_PATH*2 + 4];
-         sprintf(final_path, "%s/~%s", dp->servers.server[j].url, path);
-         strcpy(dp->resources.resource[i].request[j].server_n_path, final_path);
-      }
-   }
-}
-
 void create_sockets(data *dp)
 {
    int sockfd; /* Socket (de tipo TCP) para transmision de datos */
@@ -168,6 +144,62 @@ void create_sockets(data *dp)
    }
 }
 
+void set_requests(data *dp)
+{
+   for(int i = 0; i < dp->resources.n; i++)
+   {
+      char *server = dp->servers.server[i % dp->servers.n].url;
+      char *path = dp->resources.resource[i].path;
+      int full_size = get_size(server, path);
+      dp->resources.resource[i].size = full_size;
+      printf("path: %s%s\tsize:%d\n", server, path, dp->resources.resource[i].size);
+
+      float range = ceil(full_size / dp->servers.n);
+      for(int j = 0; j < dp->servers.n; j ++)
+      {
+         float start = j * range;
+         float end   = (j+1) * range - 1;
+         dp->resources.resource[i].request[j].range[0] = (int)start;
+         dp->resources.resource[i].request[j].range[1] = (int)end;
+
+         unsigned int sockfd = dp->servers.server[j%dp->servers.n].sockfd;
+         dp->resources.resource[i].request[j].sockfd = sockfd;
+
+         dp->resources.resource[i].nrequest++;
+      }
+   }
+}
+
+void send_requests(data *dp)
+{
+   for(int i = 0; i < dp->resources.n; i++)
+   {
+      for(int j = 0; j < dp->resources.resource[i].nrequest; j++)
+      {
+         char req[MAX_PATH+21] = "";
+         sprintf(req, "GET %s HTTP/1.0\r\n\r\n", dp->resources.resource[i].path);
+         printf("Request: %s\n", req);
+         send(dp->resources.resource[i].request[j].sockfd, req, sizeof(req), 0);
+      }      
+   }
+}
+
+void receive_requests(data *dp)
+{
+   for(int i = 0; i < dp->resources.n; i++)
+   {
+      for(int j = 0; j < dp->resources.resource[i].nrequest; j++)
+      {
+         char req[99999];
+         if(recv(dp->resources.resource[i].request[j].sockfd, req, 99999, 0) < 0)
+         {
+            printf("recv error\n");
+            exit(1);
+         }
+         printf("------------------\nRecibido: \n%s\n\n%s\n", dp->resources.resource[i].path, req);
+      }      
+   }
+}
 
 int main(int argc, char* argv[])
 {
@@ -182,8 +214,13 @@ int main(int argc, char* argv[])
    parse_arguments(argc, argv, &d);
 
 
-   set_resources_sizes(&d);
    create_sockets(&d);
+   printf("SET REQUEST\n");
+   set_requests(&d);
+   printf("SEND REQUEST\n");
+   send_requests(&d);
+   printf("RECEIVE REQUEST\n");
+   receive_requests(&d);
 
    return 0;
 }
