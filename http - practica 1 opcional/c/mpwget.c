@@ -15,6 +15,7 @@
 
 #include <netdb.h> 
 
+#include <regex.h>
 
 #define MAX_NSERVERS 100
 #define MAX_NRESOURCES 100
@@ -59,10 +60,10 @@ typedef struct Data {
 } data;  
 
 
-void parse_arguments(int argc, char* argv[], data *dp);
-void set_requests(data *dp);
-int get_size(char* server, char* path);
-void create_sockets(data *dp);
+void  parse_arguments(int argc, char* argv[], data *dp);
+void  set_requests(data *dp);
+int   get_size(unsigned int sockfd, char *path);
+void  create_sockets(data *dp);
 
 void parse_arguments(int argc, char* argv[], data *dp)
 {
@@ -82,20 +83,58 @@ void parse_arguments(int argc, char* argv[], data *dp)
    }
 }
 
-int get_size(char* server, char* path)
+int get_size_from_header(char *h)
 {
+   regex_t    preg;
+   char       *pattern = "Content-Length: [0-9]*";
+   int        rc;
+   size_t     nmatch = 2;
+   regmatch_t pmatch[2];
+ 
+   if (0 != (rc = regcomp(&preg, pattern, 0))) {
+      printf("regcomp() failed, returning nonzero (%d)\n", rc);
+      exit(EXIT_FAILURE);
+   }
+ 
+   if (0 != (rc = regexec(&preg, h, nmatch, pmatch, 0))) {
+      printf("Failed to match:\n%s with '%s',returning %d.\n",
+             h, pattern, rc);
+   }
+   else {
+      printf("With the whole expression, "
+             "a matched substring \"%.*s\" is found at position %d to %d.\n",
+             pmatch[0].rm_eo - pmatch[0].rm_so, &h[pmatch[0].rm_so],
+             pmatch[0].rm_so, pmatch[0].rm_eo - 1);
+   }
+   regfree(&preg);
+   return 0;
+}
+
+int get_size(unsigned int sockfd, char *path)
+{
+   /*
    CURL *curl = curl_easy_init();
    char final_path[MAX_PATH];
    int size;
    if(curl) {
       snprintf(final_path, sizeof(final_path), "%s/~%s", server, path);
       curl_easy_setopt(curl, CURLOPT_URL, final_path);
-      curl_easy_setopt(curl, CURLOPT_NOBODY, 1L); /* get us the resource without a body! */
+      curl_easy_setopt(curl, CURLOPT_NOBODY, 1L); /* get us the resource without a body! *\/
       if(curl_easy_perform(curl) == CURLE_OK) {
          curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &size);
       }
    }
    return size;
+   */
+   char req[MAX_PATH+22] = "";
+   sprintf(req, "HEAD %s HTTP/1.0\r\n\r\n", path);
+   printf("Request: %s\n", req);
+   send(sockfd, req, sizeof(req), 0);
+   char res[9999] = "";
+   recv(sockfd, res, 99999, 0);
+   printf("LOL\n%s", res);
+   get_size_from_header(res);
+   exit(1);
 }
 
 void set_ips(data *dp)
@@ -148,11 +187,11 @@ void set_requests(data *dp)
 {
    for(int i = 0; i < dp->resources.n; i++)
    {
-      char *server = dp->servers.server[i % dp->servers.n].url;
+      unsigned int sockfd = dp->servers.server[i % dp->servers.n].sockfd;
       char *path = dp->resources.resource[i].path;
-      int full_size = get_size(server, path);
+      int full_size = get_size(sockfd, path);
       dp->resources.resource[i].size = full_size;
-      printf("path: %s%s\tsize:%d\n", server, path, dp->resources.resource[i].size);
+      printf("sockfd: %d, path:%s\tsize:%d\n", sockfd, path, dp->resources.resource[i].size);
 
       float range = ceil(full_size / dp->servers.n);
       for(int j = 0; j < dp->servers.n; j ++)
@@ -190,13 +229,13 @@ void receive_requests(data *dp)
    {
       for(int j = 0; j < dp->resources.resource[i].nrequest; j++)
       {
-         char req[99999];
-         if(recv(dp->resources.resource[i].request[j].sockfd, req, 99999, 0) < 0)
+         char res[99999];
+         if(recv(dp->resources.resource[i].request[j].sockfd, res, 99999, 0) < 0)
          {
             printf("recv error\n");
             exit(1);
          }
-         printf("------------------\nRecibido: \n%s\n\n%s\n", dp->resources.resource[i].path, req);
+         printf("------------------\nRecibido: \n%s\n\n%s\n", dp->resources.resource[i].path, res);
       }      
    }
 }
@@ -216,10 +255,13 @@ int main(int argc, char* argv[])
 
    create_sockets(&d);
    printf("SET REQUEST\n");
+
    set_requests(&d);
    printf("SEND REQUEST\n");
+
    send_requests(&d);
    printf("RECEIVE REQUEST\n");
+
    receive_requests(&d);
 
    return 0;
