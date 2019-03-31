@@ -86,55 +86,32 @@ void parse_arguments(int argc, char* argv[], data *dp)
 int get_size_from_header(char *h)
 {
    regex_t    preg;
-   char       *pattern = "Content-Length: [0-9]*";
+   char       *pattern = "key: \\([0-9]*\\)";
    int        rc;
    size_t     nmatch = 2;
    regmatch_t pmatch[2];
+   printf("%s", h);
  
-   if (0 != (rc = regcomp(&preg, pattern, 0))) {
-      printf("regcomp() failed, returning nonzero (%d)\n", rc);
-      exit(EXIT_FAILURE);
+   if (0 != (rc = regcomp(&preg, pattern, 0)) || 0 != (rc = regexec(&preg, h, nmatch, pmatch, 0))) {
+      return -1;
    }
- 
-   if (0 != (rc = regexec(&preg, h, nmatch, pmatch, 0))) {
-      printf("Failed to match:\n%s with '%s',returning %d.\n",
-             h, pattern, rc);
-   }
-   else {
-      printf("With the whole expression, "
-             "a matched substring \"%.*s\" is found at position %d to %d.\n",
-             pmatch[0].rm_eo - pmatch[0].rm_so, &h[pmatch[0].rm_so],
-             pmatch[0].rm_so, pmatch[0].rm_eo - 1);
-   }
-   regfree(&preg);
-   return 0;
+
+   char size[99] = "";
+   sprintf(size, "%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &h[pmatch[1].rm_so]);
+   printf("%s", size);
+   return atoi(size);
 }
 
 int get_size(unsigned int sockfd, char *path)
 {
-   /*
-   CURL *curl = curl_easy_init();
-   char final_path[MAX_PATH];
-   int size;
-   if(curl) {
-      snprintf(final_path, sizeof(final_path), "%s/~%s", server, path);
-      curl_easy_setopt(curl, CURLOPT_URL, final_path);
-      curl_easy_setopt(curl, CURLOPT_NOBODY, 1L); /* get us the resource without a body! *\/
-      if(curl_easy_perform(curl) == CURLE_OK) {
-         curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &size);
-      }
-   }
-   return size;
-   */
    char req[MAX_PATH+22] = "";
    sprintf(req, "HEAD %s HTTP/1.0\r\n\r\n", path);
    printf("Request: %s\n", req);
    send(sockfd, req, sizeof(req), 0);
    char res[9999] = "";
    recv(sockfd, res, 99999, 0);
-   printf("LOL\n%s", res);
-   get_size_from_header(res);
-   exit(1);
+   printf("%d\n",get_size_from_header(res));
+   return get_size_from_header(res);
 }
 
 void set_ips(data *dp)
