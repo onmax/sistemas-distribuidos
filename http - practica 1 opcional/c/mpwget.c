@@ -21,7 +21,8 @@
 #define MAX_NRESOURCES 100
 #define MAX_REQUESTS 100
 #define MAX_PATH 200
-#define PORT 8080 
+#define PORT 80
+#define OBJECT_SIZE 99999
 
 
 struct request
@@ -83,35 +84,37 @@ void parse_arguments(int argc, char* argv[], data *dp)
    }
 }
 
-int get_size_from_header(char *h)
+int exec_regex(char *h, char *pattern)
 {
    regex_t    preg;
-   char       *pattern = "key: \\([0-9]*\\)";
    int        rc;
    size_t     nmatch = 2;
    regmatch_t pmatch[2];
-   printf("%s", h);
  
    if (0 != (rc = regcomp(&preg, pattern, 0)) || 0 != (rc = regexec(&preg, h, nmatch, pmatch, 0))) {
       return -1;
    }
 
-   char size[99] = "";
+   char size[OBJECT_SIZE] = "";
    sprintf(size, "%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &h[pmatch[1].rm_so]);
-   printf("%s", size);
    return atoi(size);
 }
 
+// Return the size of an object in a server which has been connected previously
+// Return -1 if something went wrong
 int get_size(unsigned int sockfd, char *path)
 {
+   // Send a request without body (HEAD method). Only receive headers.
    char req[MAX_PATH+22] = "";
    sprintf(req, "HEAD %s HTTP/1.0\r\n\r\n", path);
-   printf("Request: %s\n", req);
    send(sockfd, req, sizeof(req), 0);
-   char res[9999] = "";
-   recv(sockfd, res, 99999, 0);
-   printf("%d\n",get_size_from_header(res));
-   return get_size_from_header(res);
+
+   // Receive the request
+   char res[OBJECT_SIZE] = "";
+   recv(sockfd, res, OBJECT_SIZE, 0);
+
+   // Get the object size and return it
+   return exec_regex(res, "Content-Length: \\([0-9]*\\)");
 }
 
 void set_ips(data *dp)
@@ -131,6 +134,7 @@ void create_sockets(data *dp)
 {
    int sockfd; /* Socket (de tipo TCP) para transmision de datos */
    struct sockaddr_in  server;  /* Direccion TCP servidor */ 
+   struct hostent        *he;
 
    for(int i = 0; i<dp->resources.n; i++)
    {
@@ -146,13 +150,16 @@ void create_sockets(data *dp)
       /* Nos conectamos con el servidor */
       bzero((char*)&server,sizeof(struct sockaddr_in)); /* Pone a 0 la estructura */
       server.sin_family=AF_INET;
-      server.sin_port=htons(80);
-      server.sin_addr.s_addr = inet_addr("138.100.9.22");
+      server.sin_port=htons(PORT);
+      if ( (he = gethostbyname(dp->servers.server[i % dp->servers.n].url) ) == NULL ) {
+            exit(1); /* error */
+      }
+      memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length);
 
       fprintf(stdout,"CLIENTE:  Conexion al puerto servidor: ");
       if(connect(sockfd, (struct sockaddr*)&server, sizeof(struct sockaddr_in)) < 0)
       {
-         fprintf(stdout,"ERROR %d\n",-13);
+         fprintf(stdout,"\n\n--------------------!-----------ERROR %d\n",-13);
          close(sockfd); exit(1);
       }
       fprintf(stdout,"OK\n");
@@ -206,8 +213,8 @@ void receive_requests(data *dp)
    {
       for(int j = 0; j < dp->resources.resource[i].nrequest; j++)
       {
-         char res[99999];
-         if(recv(dp->resources.resource[i].request[j].sockfd, res, 99999, 0) < 0)
+         char res[OBJECT_SIZE];
+         if(recv(dp->resources.resource[i].request[j].sockfd, res, OBJECT_SIZE, 0) < 0)
          {
             printf("recv error\n");
             exit(1);
