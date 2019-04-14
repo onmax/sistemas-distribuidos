@@ -21,22 +21,16 @@
 #define MAX_NRESOURCES 100
 #define MAX_REQUESTS 100
 #define MAX_PATH 200
+#define MAX_DOMAIN 200
 #define PORT 80
 #define OBJECT_SIZE 99999
 
 
-struct request
-{
-   unsigned int   sockfd;
-   unsigned int   range[2];
-};
-
 struct resource
 {
-   struct         request request[MAX_REQUESTS];
-   unsigned int   nrequest;
-   unsigned int   size;
+   unsigned int   body_size;
    char           path[MAX_PATH];
+   unsigned int   header_size;
 };
 
 struct resources {
@@ -44,10 +38,23 @@ struct resources {
    struct         resource resource[MAX_NRESOURCES];
 };
 
+struct request
+{
+   unsigned int   sockfd;
+   unsigned int   range[2];
+};
+
+struct requests
+{
+   struct         request request[MAX_NSERVERS * MAX_NRESOURCES];
+   unsigned int   nrequests;
+};
+
 struct server {
    int            sockfd;
-   char           url[MAX_PATH*2 + 2];
-   struct hostent *ip;
+   char           url[MAX_DOMAIN];
+   struct         hostent *ip;
+   struct         requests requests;
 };
 
 struct servers {
@@ -63,7 +70,7 @@ typedef struct Data {
 
 void  parse_arguments(int argc, char* argv[], data *dp);
 void  set_requests(data *dp);
-int   get_size(unsigned int sockfd, char *path);
+void  set_sizes(data *dp, unsigned int sockfd, char *path, int i);
 void  create_sockets(data *dp);
 
 void parse_arguments(int argc, char* argv[], data *dp)
@@ -102,32 +109,21 @@ int exec_regex(char *h, char *pattern)
 
 // Return the size of an object in a server which has been connected previously
 // Return -1 if something went wrong
-int get_size(unsigned int sockfd, char *path)
+void set_sizes(data *dp, unsigned int sockfd, char *path, int i)
 {
    // Send a request without body (HEAD method). Only receive headers.
-   char req[MAX_PATH+22] = "";
-   sprintf(req, "HEAD %s HTTP/1.0\r\n\r\n", path);
+   char *method = "HEAD %s HTTP/1.0\r\n\r\n";
+   char req[MAX_PATH + sizeof(method)] = "";
+   sprintf(req, method, path);
    send(sockfd, req, sizeof(req), 0);
 
    // Receive the request
    char res[OBJECT_SIZE] = "";
    recv(sockfd, res, OBJECT_SIZE, 0);
 
-   // Get the object size and return it
-   return exec_regex(res, "Content-Length: \\([0-9]*\\)");
-}
-
-void set_ips(data *dp)
-{
-   struct hostent *host;
-   for(int i = 0; i < dp->servers.n; i++)
-   {
-      if ((host = gethostbyname(dp->servers.server[0].url)) == NULL) {
-         fprintf(stdout,"ERROR, no such host\n");
-         exit(1);
-      }
-      dp->servers.server[i].ip = host;
-   }
+   // Plus 4 because we need the start of the body in response
+   dp->resources.resource[i].header_size = strlen(res) + 4; 
+   dp->resources.resource[i].body_size = exec_regex(res, "Content-Length: \\([0-9]*\\)");
 }
 
 void create_sockets(data *dp)
@@ -139,7 +135,7 @@ void create_sockets(data *dp)
    for(int i = 0; i<dp->resources.n; i++)
    {
       /* Creacion del socket TCP */
-      fprintf(stdout,"CLIENTE:  Creacion del socket TCP: ");
+      fprintf(stdout, "CLIENTE:  Creacion del socket TCP: ");
       if((sockfd=socket(AF_INET,SOCK_STREAM,0))<0)
       {
          fprintf(stdout,"ERROR\n");
@@ -152,14 +148,14 @@ void create_sockets(data *dp)
       server.sin_family=AF_INET;
       server.sin_port=htons(PORT);
       if ( (he = gethostbyname(dp->servers.server[i % dp->servers.n].url) ) == NULL ) {
-            exit(1); /* error */
+            exit(1);
       }
       memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length);
 
       fprintf(stdout,"CLIENTE:  Conexion al puerto servidor: ");
       if(connect(sockfd, (struct sockaddr*)&server, sizeof(struct sockaddr_in)) < 0)
       {
-         fprintf(stdout,"\n\n--------------------!-----------ERROR %d\n",-13);
+         fprintf(stdout,"\n\nERROR %d\n",-13);
          close(sockfd); exit(1);
       }
       fprintf(stdout,"OK\n");
@@ -173,18 +169,18 @@ void set_requests(data *dp)
    {
       unsigned int sockfd = dp->servers.server[i % dp->servers.n].sockfd;
       char *path = dp->resources.resource[i].path;
-      int full_size = get_size(sockfd, path);
-      dp->resources.resource[i].size = full_size;
-      printf("sockfd: %d, path:%s\tsize:%d\n", sockfd, path, dp->resources.resource[i].size);
+      set_sizes(dp, sockfd, path, i);
+      printf("sockfd: %d, path:%s\tsize:%d\n", sockfd, path, dp->resources.resource[i].body_size);
 
-      float range = ceil(full_size / dp->servers.n);
+      float range = ceil(dp->resources.resource[i].body_size / dp->servers.n);
+      printf("Body size: %d\n", dp->resources.resource[i].body_size);
       for(int j = 0; j < dp->servers.n; j ++)
       {
-         float start = j * range;
-         float end   = (j+1) * range - 1;
-         dp->resources.resource[i].request[j].range[0] = (int)start;
-         dp->resources.resource[i].request[j].range[1] = (int)end;
-
+         int start = (int) (ceil(j * range));
+         int end   = (int) (ceil((j+1) * range));
+         dp->resources.resource[i].request[j].range[0] = start;
+         dp->resources.resource[i].request[j].range[1] = end;
+         printf("Ranges: %d %d\n", start, end);
          unsigned int sockfd = dp->servers.server[j%dp->servers.n].sockfd;
          dp->resources.resource[i].request[j].sockfd = sockfd;
 
@@ -213,8 +209,11 @@ void receive_requests(data *dp)
    {
       for(int j = 0; j < dp->resources.resource[i].nrequest; j++)
       {
-         char res[OBJECT_SIZE];
-         if(recv(dp->resources.resource[i].request[j].sockfd, res, OBJECT_SIZE, 0) < 0)
+         int object_size = dp->resources.resource[i].header_size + dp->resources.resource[i].body_size;
+         printf("Recursos %d\n", dp->resources.resource[i].nrequest);
+         printf("TOTAL SIZE: %d\n", object_size);
+         char res[dp->resources.resource[i].header_size + dp->resources.resource[i].body_size];
+         if(recv(dp->resources.resource[i].request[j].sockfd, res, object_size, 0) < 0)
          {
             printf("recv error\n");
             exit(1);
@@ -234,10 +233,12 @@ int main(int argc, char* argv[])
 
    struct Data d;
    
+   // TODO: url are ok => regex
    parse_arguments(argc, argv, &d);
 
 
    create_sockets(&d);
+
    printf("SET REQUEST\n");
 
    set_requests(&d);
