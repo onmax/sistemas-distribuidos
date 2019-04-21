@@ -11,38 +11,93 @@
 typedef struct
 {
     char **array;
-    size_t index;
-    size_t size;
+    int size;
 } List;
 
-void new_list(List *list, size_t length)
+void create_list(List *list)
 {
     list->array = (char **)malloc(0);
-    list->index = 0;
     list->size = 0;
 }
 
-void push(List *list, char *element)
+void print_list(List *list)
 {
-    printf("SOY %d \n", (int)list->size);
-    list->size += strlen(element);
-    printf("CURRENT SIZE %ld\n", list->size);
-    list->array = (char **)realloc(list->array, list->size);
-    list->array[list->index++] = element;
-    printf("str %s\n", list->array[0]);
+    printf("Size: %d -> [", list->size);
+    for (int i = 0; i < list->size; ++i)
+        printf("'%s', ", list->array[i]);
+    printf("]\n");
+
+}
+
+int push(List *list, char *element)
+{
+    list->size++;
+    list->array = (char **)realloc(list->array, list->size * sizeof(*list->array));
+    list->array[list->size - 1] = (char *)malloc(strlen(element) * sizeof(*list->array[list->size - 1]));
+    if (!list->array[list->size - 1])
+        return -1;
+    strcpy(list->array[list->size - 1], element);
+    return 0;
+}
+
+int remove_element_at(List *list, int index_to_remove)
+{
+    list->size--;
+    char **temp = (char **)malloc(list->size * sizeof(*list->array));
+    
+    memmove(
+        temp,
+        list->array,
+        (index_to_remove + 1) * sizeof(*list->array));
+    memmove(
+        temp + index_to_remove,
+        list->array + index_to_remove + 1,
+        (list->size - index_to_remove) * sizeof(*list->array));
+
+    free(list->array[index_to_remove]);
+    list->array = temp;
+    return 0;
+}
+
+int index_of(List *list, char *element)
+{
+    int i = 0;
+
+    for(; i < list->size; i++)
+    {
+        printf("INDEZ: %d %s\n", i, list->array[i]);
+        if(strcmp(list->array[i], element) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int remove_element(List *list, char *element)
+{
+    int index;
+    if((index = index_of(list, element)) < 0) {
+        printf("El elemento no se encuentra en la lista\n");
+        return -1;
+    }
+    printf("%d\n", index);
+    remove_element_at(list, index);
 }
 
 int main()
 {
-    List a;
+    List list;
     int i;
+    char a[4];
 
-    new_list(&a, strlen("hola")); // initially 5 elements
-    push(&a, "hola");             // automatically resizes as necessary
-    for (i = 0; i < 100; i++) {
-        printf("\nit %d\n", i);
-        push(&a, "HOLA");         // automatically resizes as necessary
+    create_list(&list);
+    for (i = 0; i < 10; i++)
+    {
+        sprintf(a, "%d", i * 10 + 10);
+        push(&list, a);
     }
-    printf("%s\n", a.array[0]);   // print 10th element
-    printf("%d\n", (int)a.index); // print number of elements
+    print_list(&list);
+    remove_element(&list, "50");
+    print_list(&list);
 }
