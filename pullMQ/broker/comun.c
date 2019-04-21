@@ -65,12 +65,10 @@ int index_of(List *list, char *element)
 
     for(; i < list->size; i++)
     {
-        printf("INDEZ: %d %s\n", i, list->array[i]);
         if(strcmp(list->array[i], element) == 0) {
             return i;
         }
     }
-
     return -1;
 }
 
@@ -78,11 +76,23 @@ int remove_element(List *list, char *element)
 {
     int index;
     if((index = index_of(list, element)) < 0) {
-        printf("El elemento no se encuentra en la lista\n");
+        printf("El elemento '%s' no se encuentra en la lista\n", element);
         return -1;
     }
-    printf("%d\n", index);
     remove_element_at(list, index);
+}
+
+int includes(List *list, char *element)
+{
+    int i = 0;
+
+    for(; i < list->size; i++)
+    {
+        if(strcmp(list->array[i], element) == 0) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int main()
@@ -98,6 +108,6 @@ int main()
         push(&list, a);
     }
     print_list(&list);
-    remove_element(&list, "50");
+    remove_element(&list, "55");
     print_list(&list);
 }
