@@ -3,31 +3,44 @@
 #include "comun.h"
 #include "pullMQ.h"
 #include <string.h>
+#include "../dyna/dyna_ll_lifo.c"
 
+typedef struct
+{
+	DYN_LL_LIFO *array;
+	int size;
+} DYN_ARR;
 
-struct Node {
-	char 			*msg;
-	struct 			Node *next;
-};
+DYN_ARR dyn_arr;
+bool initialized = false;
 
-struct Queue {
-	struct 			Node *head;
-	struct 			Node *tail;
-	unsigned int 	size;
-	char			*name;
-	bool 			blocking;
-};
+void create_DYNAR_LIFO() {
+	dyn_arr.array = (DYN_LL_LIFO *)malloc(0);
+	dyn_arr.size = 0;
+	initialized = true;
+}
 
-int createMQ(const char *name) {
-	printf("LOLL");
+int createMQ(const char *name)
+{
+	if(initialized == 0)
+		create_DYNAR_LIFO();
+	DYN_LL_LIFO dyn_ll_lifo;
+	dyn_create(&dyn_ll_lifo);
 	return 0;
 }
-int destroyMQ(const char *name){
+int destroyMQ(const char *name)
+{
 	return 0;
 }
-int put(const char *name, const void *msg, size_t tam){
+int put(const char *name, const void *msg, size_t tam)
+{
 	return 0;
 }
-int get(const char *name, void **msg, size_t *tam, bool blocking){
+int get(const char *name, void **msg, size_t *tam, bool blocking)
+{
 	return 0;
+}
+
+void main(){
+	createMQ("HOLA");
 }

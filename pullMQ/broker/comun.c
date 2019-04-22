@@ -7,101 +7,45 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "comun.h"
+#include <stdbool.h>
+#include "linkedList"
 typedef struct
 {
     char **array;
     int size;
 } List;
 
-void create_list(List *list)
+struct Node
 {
-    list->array = (char **)malloc(0);
-    list->size = 0;
-}
+    char *msg;
+    struct Node *next;
+};
 
-void print_list(List *list)
+typedef struct 
 {
-    printf("Size: %d -> [", list->size);
-    for (int i = 0; i < list->size; ++i)
-        printf("'%s', ", list->array[i]);
-    printf("]\n");
+    struct Node *head;
+    struct Node *tail;
+    unsigned int size;
+} LIFO;
 
-}
-
-int push(List *list, char *element)
+typedef struct
 {
-    list->size++;
-    list->array = (char **)realloc(list->array, list->size * sizeof(*list->array));
-    list->array[list->size - 1] = (char *)malloc(strlen(element) * sizeof(*list->array[list->size - 1]));
-    if (!list->array[list->size - 1])
-        return -1;
-    strcpy(list->array[list->size - 1], element);
-    return 0;
-}
+    LIFO*    array;
+    int             size;
+} LinkedLists;
 
-int remove_element_at(List *list, int index_to_remove)
-{
-    list->size--;
-    char **temp = (char **)malloc(list->size * sizeof(*list->array));
-    
-    memmove(
-        temp,
-        list->array,
-        (index_to_remove + 1) * sizeof(*list->array));
-    memmove(
-        temp + index_to_remove,
-        list->array + index_to_remove + 1,
-        (list->size - index_to_remove) * sizeof(*list->array));
 
-    free(list->array[index_to_remove]);
-    list->array = temp;
-    return 0;
-}
 
-int index_of(List *list, char *element)
-{
-    int i = 0;
-
-    for(; i < list->size; i++)
-    {
-        if(strcmp(list->array[i], element) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-int remove_element(List *list, char *element)
-{
-    int index;
-    if((index = index_of(list, element)) < 0) {
-        printf("El elemento '%s' no se encuentra en la lista\n", element);
-        return -1;
-    }
-    remove_element_at(list, index);
-}
-
-int includes(List *list, char *element)
-{
-    int i = 0;
-
-    for(; i < list->size; i++)
-    {
-        if(strcmp(list->array[i], element) == 0) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 int main()
 {
-    List list;
+    LinkedLists lists;
     int i;
     char a[4];
 
-    create_list(&list);
+    create_queues(&lists);
+    /*
     for (i = 0; i < 10; i++)
     {
         sprintf(a, "%d", i * 10 + 10);
@@ -110,4 +54,5 @@ int main()
     print_list(&list);
     remove_element(&list, "55");
     print_list(&list);
+    */
 }
