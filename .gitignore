@@ -2,3 +2,5 @@
 
 # folder used in http
 resources/*
+
+.vscode

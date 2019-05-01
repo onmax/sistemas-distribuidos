@@ -14,17 +14,18 @@ struct Node
 typedef struct
 {
 	char *name;
-	struct Node *head;
-	struct Node *tail;
-} QUEUE;
+	struct Node *first;
+	struct Node *last;
+} Queue;
 
-typedef struct
+typedef struct 
 {
-	QUEUE *array;
+	Queue *array;
 	int size;
-} QUEUES;
+} Queues;
 
-int queue_create(QUEUE *q, const char *name);
-int queue_destroy(QUEUE *q);
-int queue_push(QUEUE *q, const char *msg);
-int queue_pop(QUEUE *q, void **msg, size_t *tam);
+int queue_create(Queue *q, const char *name);
+int queue_destroy(Queue *q);
+int queue_push(Queue *q, const char *msg);
+int queue_pop(Queue *q, void **msg, size_t *tam);
+int queue_search_node(Queue *q, struct Node *node, struct Node **result);

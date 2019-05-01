@@ -10,46 +10,75 @@
 #include <stdbool.h>
 
 
-int queue_create(QUEUE *q, const char *name)
+int queue_create(Queue *q, const char *name)
 {
+    q->name = (char *)malloc(strlen(name));
     strcpy(q->name, name);
-	q->head = NULL;
-	q->tail = NULL;
+	q->first = NULL;
+	q->last = NULL;
     return 0;
 }
 
-int queue_destroy(QUEUE *q)
+int queue_destroy(Queue *q)
 {
     free(q);
     return 0;
 }
 
-int queue_push(QUEUE *q, const char *msg)
+int queue_push(Queue *q, const char *msg)
 {
     struct Node *node;
     node = (struct Node *)malloc(sizeof(struct Node));
+    node->msg = (char *)malloc(strlen(msg));
     strcpy(node->msg, msg);
-    node->next = NULL;
 
-    if(q->head == NULL)
+    if(q->first == NULL)
     {
-        q->head = node;
+        node->next = NULL;
+        q->first = node;
     }
-
-    q->tail = node;
+    else
+    {
+        node->next = q->last;
+    }
+    q->last = node;
     return 0;
 }
 
-int queue_pop(QUEUE *q, void **msg, size_t *tam)
+int queue_pop(Queue *q, void **msg, size_t *tam)
 {
-    if(q->head == NULL)
+
+    if(q->last == NULL)
     {
         return -1;
     }
-    struct Node *head = q->head;
+    struct Node *first = q->first;
 
-    *msg = (void *)head->msg;
-    *tam = strlen(head->msg);
-    free(head);
+    *msg = (void *)first->msg;
+    *tam = strlen(first->msg);
+    
+    struct Node *second;
+    if(queue_search_node(q, first, &second) < 0)
+    {
+        return -1;
+    }
+
+    second->next = NULL;
+    q->first = second;
+
+    free(first);
+
     return 0;
 }
+
+int queue_search_node(Queue *q, struct Node *node, struct Node **result)
+{
+    struct Node *current = q->last;
+    do {
+        if(current->next == node) {
+            *result = current;
+            return 0;
+        }
+    } while((current = current->next) != NULL);
+    return 1;
+} 
