@@ -61,6 +61,9 @@ int main(int argc, char *argv[])
                     printf("escritura en la cola %s correcta\n", cola);
                 free(linea);
                 break;
+            case 'I':
+                print_everything();
+                break;
             default:
                 printf("operación no válida\n");
             }

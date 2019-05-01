@@ -7,52 +7,49 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "comun.h"
 #include <stdbool.h>
-#include "linkedList"
-typedef struct
+
+
+int queue_create(QUEUE *q, const char *name)
 {
-    char **array;
-    int size;
-} List;
+    strcpy(q->name, name);
+	q->head = NULL;
+	q->tail = NULL;
+    return 0;
+}
 
-struct Node
+int queue_destroy(QUEUE *q)
 {
-    char *msg;
-    struct Node *next;
-};
+    free(q);
+    return 0;
+}
 
-typedef struct 
+int queue_push(QUEUE *q, const char *msg)
 {
-    struct Node *head;
-    struct Node *tail;
-    unsigned int size;
-} LIFO;
+    struct Node *node;
+    node = (struct Node *)malloc(sizeof(struct Node));
+    strcpy(node->msg, msg);
+    node->next = NULL;
 
-typedef struct
-{
-    LIFO*    array;
-    int             size;
-} LinkedLists;
-
-
-
-
-int main()
-{
-    LinkedLists lists;
-    int i;
-    char a[4];
-
-    create_queues(&lists);
-    /*
-    for (i = 0; i < 10; i++)
+    if(q->head == NULL)
     {
-        sprintf(a, "%d", i * 10 + 10);
-        push(&list, a);
+        q->head = node;
     }
-    print_list(&list);
-    remove_element(&list, "55");
-    print_list(&list);
-    */
+
+    q->tail = node;
+    return 0;
+}
+
+int queue_pop(QUEUE *q, void **msg, size_t *tam)
+{
+    if(q->head == NULL)
+    {
+        return -1;
+    }
+    struct Node *head = q->head;
+
+    *msg = (void *)head->msg;
+    *tam = strlen(head->msg);
+    free(head);
+    return 0;
 }

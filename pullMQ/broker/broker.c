@@ -13,8 +13,8 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Uso: %s puerto\n", argv[0]);
         return 1;
     }
-    printf("\nYo soy broker: %s\n\n", argv[0]);
-    // Creación de una cola: añadiría una nueva entrada a la estructura de datos de las colas.
+
+    // Creación de una cola
     createMQ(NULL);
 
 
