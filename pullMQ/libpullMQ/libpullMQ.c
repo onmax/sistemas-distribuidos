@@ -28,27 +28,23 @@ int createMQ(const char *name)
 
 	// Reservar espacio para el nuevo elemento
 	queues.size++;
-    queues.array = (Queue **)realloc(queues.array, queues.size * sizeof(queues.array));
+    queues.array = (Queue *)realloc(queues.array, queues.size * sizeof(*queues.array));
 	if (queues.array == NULL)
 	{
         return -1;
 	}
 	
 	// Crear la cola
+
 	Queue queue;
 	if((queue_create(&queue, name)) < 0)
 	{
 		return -1;
 	}
-	
+
 	// Meter la cola en el array
     queues.array[queues.size - 1] = queue;
-	if(queues.size == 2)
-	{
-		printf("!!FIR  %s  !!\n", queues.array[0].name);
-		printf("!!  %s  !!\n\n\n\n", queues.array[1].name);
 
-	}
 	return 0;
 }
 
@@ -65,7 +61,7 @@ int destroyMQ(const char *name)
 	q = queues.array[index];
 	/*
 	queue_destroy(&q);
-
+	*/
 	queues.size--;
 	Queue *temp = (Queue *)malloc(queues.size * sizeof(*queues.array));
 	memmove(
@@ -79,7 +75,6 @@ int destroyMQ(const char *name)
         (queues.size - index) * sizeof(*queues.array));
     free(queues.array);
     queues.array = temp;
-*/
 	return 0;
 }
 
@@ -93,7 +88,6 @@ int put(const char *name, const void *msg, size_t tam)
 		return -1;
 	}
 	q = queues.array[index];
-	
 	queue_push(&q, msg);
 	queues.array[index] = q;
 	return 0;
@@ -120,10 +114,17 @@ int get(const char *name, void **msg, size_t *tam, bool blocking)
 
 void print_everything(){
 	printf("TAMAÑO ARRAY: %d\n", queues.size);
+	struct Node *node;
+	Queue queue;
 	for(int i = 0; i < queues.size; i++)
 	{
-		printf("  %s - %d:\n\t", queues.array[i].name, i);
-		struct Node *node = queues.array[i].last;
+		if(i != 0)
+		{
+			free(node);
+		}
+		queue = queues.array[i];
+		node = queue.last;
+		printf("  %s - %d:\n\t", queue.name, i);
 		do {
 			printf(" %s ->", node->msg);
 		} while((node = node->next) != NULL);
@@ -152,39 +153,36 @@ int main()
 	const char *name = "NOMBRE COLA 1";
 	createMQ(name);
 	char *msg = "Elemento 1";
-	put(name, msg, strlen(msg));
 	char *msg1 = "Elemento 2";
+	char *msg2 = "Elemento 3";
+	put(name, msg2, strlen(msg1));
+	put(name, msg, strlen(msg));
 	put(name, msg1, strlen(msg1));
-	put(name, msg1, strlen(msg1));
-	print_everything();
-
 	const char *name2 = "NOMBRE COLA 2";
 	createMQ(name2);
 	put(name2, msg, strlen(msg));
+	put(name2, msg1, strlen(msg));
 	put(name2, msg, strlen(msg));
 	put(name2, msg, strlen(msg));
-	/*
-	const char *name3 = "NOMBRE COLA 3";
+
+	const char *name3 = "O3";
 	createMQ(name3);
+	put(name3, "A", strlen("A"));
 	put(name3, msg, strlen(msg));
 	put(name3, msg, strlen(msg));
-	put(name3, msg, strlen(msg));
-*/
-	print_everything();
-	/*
+
 	void *msgget = "";
 	size_t tam = 0;
 	if(get(name, &msgget, &tam, false) < 0){
 		return -1;
 	}
+
 	if(get(name2, &msgget, &tam, false) < 0){
 		return -1;
 	}
 	print_everything();
+	destroyMQ(name2);
+	print_everything();
 
-	
-	if(get(name, &msgget, &tam, false) < 0){
-		return -1;
-	}*/
 	return 0;
 }

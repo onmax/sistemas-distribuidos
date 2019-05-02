@@ -11,11 +11,12 @@
 
 
 int queue_create(Queue *q, const char *name)
-{
-    q->name = (char *)malloc(strlen(name));
-    strcpy(q->name, name);
-	q->first = NULL;
-	q->last = NULL;
+{   
+    Queue *temp = malloc(sizeof(Queue));
+    temp->name = strdup(name);
+	temp->first = NULL;
+	temp->last = NULL;
+    *q = *temp;
     return 0;
 }
 
@@ -29,7 +30,7 @@ int queue_push(Queue *q, const char *msg)
 {
     struct Node *node;
     node = (struct Node *)malloc(sizeof(struct Node));
-    node->msg = (char *)malloc(strlen(msg));
+    node->msg = (char *)malloc(sizeof(char *));
     strcpy(node->msg, msg);
 
     if(q->first == NULL)
