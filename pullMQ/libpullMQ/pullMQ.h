@@ -6,11 +6,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-int createMQ(const char *cola);
-int destroyMQ(const char *cola);
+int createMQ(const char *queue_name);
+int destroyMQ(const char *queue_name);
 
-int put(const char *cola, const void *mensaje, size_t tam);
-int get(const char *cola, void **mensaje, size_t *tam, bool blocking);
-
-int get_index(const char *name);
-void print_everything();
+int put(const char *queue_name, const void *mensaje, size_t tam);
+int get(const char *queue_name, void **mensaje, size_t *tam, bool blocking);

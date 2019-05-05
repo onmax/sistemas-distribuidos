@@ -7,6 +7,7 @@ int main(int argc, char *argv[])
 {
     int n;
     char *op, *cola;
+    createMQ("cola1");
     do
     {
         printf("\nSeleccione nombre de cola y operación (ctrl-D para terminar)\n\tC:create|D:destroy|P:put\n\tG:get no bloqueante|B:get bloqueante\n");
@@ -60,9 +61,6 @@ int main(int argc, char *argv[])
                 else
                     printf("escritura en la cola %s correcta\n", cola);
                 free(linea);
-                break;
-            case 'I':
-                print_everything();
                 break;
             default:
                 printf("operación no válida\n");

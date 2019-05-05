@@ -4,185 +4,103 @@
 #include "pullMQ.h"
 #include <string.h>
 #include <stdlib.h>
+#include<stdio.h>	//printf
+#include<string.h>	//strlen
+#include<sys/socket.h>	//socket
+#include<arpa/inet.h>	//inet_addr
+#include <netdb.h>
+#include <stdio.h>
+#include "../libpullMQ/pullMQ.h"
 
-Queues queues;
-bool initialized = false;
+#include <errno.h>
+#include <sys/socket.h>
+#include <resolv.h>
+#include <arpa/inet.h>
+#include <arpa/inet.h>
 
-int createMQ(const char *name)
+#include <netdb.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <string.h>
+#include <unistd.h> 
+
+int get_connected_socket()
 {
-	if(initialized == false)
-	{
-		queues.array = (Queue *)malloc(0);
-		queues.size = 0;
-		initialized = true;
-	}
-	// Comprobar que no haya colas con ese nombre
-	for(int i = 0; i < queues.size; i++)
-	{
-		if(strcmp(queues.array[i].name,name) == 0)
-		{
-			return -1;
-		}
-	}
+	int socket_fd;
+	struct sockaddr_in server;
 
-
-	// Reservar espacio para el nuevo elemento
-	queues.size++;
-    queues.array = (Queue *)realloc(queues.array, queues.size * sizeof(*queues.array));
-	if (queues.array == NULL)
+	socket_fd = socket(AF_INET , SOCK_STREAM , 0);
+	if (socket_fd == -1)
 	{
+		return -1;
+	}
+    struct hostent *he;
+    char *host = getenv("BROKER_HOST");
+    int port = atoi(getenv("BROKER_PORT"));
+    
+	server.sin_family = AF_INET;
+    server.sin_port = htons(port);
+
+    if ((he = gethostbyname(host)) == NULL)
+    {
         return -1;
+    }
+
+    memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length);
+
+	//Connect to remote server
+	if (connect(socket_fd , (struct sockaddr *)&server , sizeof(server)) < 0)
+	{
+		return -1;
+	}
+	return socket_fd;
+}
+
+int createMQ(const char *queue_name)
+{
+	int socket_fd;
+	
+	const char *method = "CREATE\r";
+	char *message = malloc(strlen(queue_name) + strlen(method));
+
+	char reply[10];
+	if((socket_fd = get_connected_socket(&socket_fd)) < 0)
+	{
+		return -1;
+	}
+	strcat(message, method);
+	strcat(message, queue_name);
+	if( send(socket_fd , message , strlen(message) , 0) < 0)
+	{
+		return -1;
 	}
 	
-	// Crear la cola
-
-	Queue queue;
-	if((queue_create(&queue, name)) < 0)
+	
+	if( recv(socket_fd , reply , 2000 , 0) < 0)
 	{
 		return -1;
 	}
 
-	// Meter la cola en el array
-    queues.array[queues.size - 1] = queue;
+	close(socket_fd);
+	if(strcmp(reply, "OK"))
+		return 0;
+	else
+		return -1;
+}
 
+int destroyMQ(const char *queue_name)
+{
 	return 0;
 }
 
-
-int destroyMQ(const char *name)
+int put(const char *queue_name, const void *mensaje, size_t tam)
 {
-	// Obtenemos la cola, devuleve -1 en caso de que no exista
-	Queue q;
-	int index = -1;
-	if((index = get_index(name)) < 0)
-	{
-		return -1;
-	}
-	q = queues.array[index];
-	/*
-	queue_destroy(&q);
-	*/
-	queues.size--;
-	Queue *temp = (Queue *)malloc(queues.size * sizeof(*queues.array));
-	memmove(
-        temp,
-        queues.array,
-        (index + 1) * sizeof(*queues.array));
-
-    memmove(
-        temp + index,
-        queues.array + index + 1,
-        (queues.size - index) * sizeof(*queues.array));
-    free(queues.array);
-    queues.array = temp;
 	return 0;
+
 }
 
-int put(const char *name, const void *msg, size_t tam)
+int get(const char *queue_name, void **mensaje, size_t *tam, bool blocking)
 {
-	// Obtenemos la cola, devuleve -1 en caso de que no exista
-	Queue q;
-	int index;
-	if((index = get_index(name)) < 0)
-	{
-		return -1;
-	}
-	q = queues.array[index];
-	queue_push(&q, msg);
-	queues.array[index] = q;
 	return 0;
-}
 
-int get(const char *name, void **msg, size_t *tam, bool blocking)
-{
-	// Obtenemos la cola, devuleve -1 en caso de que no exista
-	Queue q;
-	int index;
-
-	if((index = get_index(name)) < 0)
-	{
-		return -1;
-	}
-	q = queues.array[index];
-	if(queue_pop(&q, msg, tam) < 0)
-	{
-		return -1;
-	}
-	queues.array[index] = q;
-	return 0;
-}
-
-void print_everything(){
-	printf("TAMAÑO ARRAY: %d\n", queues.size);
-	struct Node *node;
-	Queue queue;
-	for(int i = 0; i < queues.size; i++)
-	{
-		if(i != 0)
-		{
-			free(node);
-		}
-		queue = queues.array[i];
-		node = queue.last;
-		printf("  %s - %d:\n\t", queue.name, i);
-		do {
-			printf(" %s ->", node->msg);
-		} while((node = node->next) != NULL);
-		printf("\n");
-	}
-}
-
-int get_index(const char *name)
-{
-	// Buscamos una cola cuyo nombre sea igual a name, devuelve -1 en caso de que no exista	
-	for(int i = 0; i < queues.size; i++)
-	{	
-		if(strcmp(queues.array[i].name,name) == 0)
-		{
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-
-
-int main()
-{
-	const char *name = "NOMBRE COLA 1";
-	createMQ(name);
-	char *msg = "Elemento 1";
-	char *msg1 = "Elemento 2";
-	char *msg2 = "Elemento 3";
-	put(name, msg2, strlen(msg1));
-	put(name, msg, strlen(msg));
-	put(name, msg1, strlen(msg1));
-	const char *name2 = "NOMBRE COLA 2";
-	createMQ(name2);
-	put(name2, msg, strlen(msg));
-	put(name2, msg1, strlen(msg));
-	put(name2, msg, strlen(msg));
-	put(name2, msg, strlen(msg));
-
-	const char *name3 = "O3";
-	createMQ(name3);
-	put(name3, "A", strlen("A"));
-	put(name3, msg, strlen(msg));
-	put(name3, msg, strlen(msg));
-
-	void *msgget = "";
-	size_t tam = 0;
-	if(get(name, &msgget, &tam, false) < 0){
-		return -1;
-	}
-
-	if(get(name2, &msgget, &tam, false) < 0){
-		return -1;
-	}
-	print_everything();
-	destroyMQ(name2);
-	print_everything();
-
-	return 0;
 }
