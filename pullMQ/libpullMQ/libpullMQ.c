@@ -60,7 +60,7 @@ int createMQ(const char *queue_name)
 {
 	int socket_fd;
 	
-	const char *method = "CREATE\r";
+	const char *method = "CREATE=";
 	char *message = malloc(strlen(queue_name) + strlen(method));
 
 	char reply[10];
@@ -70,6 +70,15 @@ int createMQ(const char *queue_name)
 	}
 	strcat(message, method);
 	strcat(message, queue_name);
+	char length[sizeof(size_t)];
+	snprintf(length, sizeof length, "%d", strlen(message));
+	printf("LENGTH: %s\n", length);
+	if( send(socket_fd , length, sizeof(size_t), 0) < 0)
+	{
+		return -1;
+	}
+	printf("ENVIADO LENGTH\n");
+
 	if( send(socket_fd , message , strlen(message) , 0) < 0)
 	{
 		return -1;
@@ -82,6 +91,7 @@ int createMQ(const char *queue_name)
 	}
 
 	close(socket_fd);
+	printf("RES: %s\n", reply);
 	if(strcmp(reply, "OK"))
 		return 0;
 	else

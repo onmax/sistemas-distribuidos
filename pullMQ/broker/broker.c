@@ -247,24 +247,36 @@ void print_everything(){
 	}
 }
 
+int detect_method(char *message)
+{
+    int i = 0;
+    char *p = strtok (message, "=");
+    char *array[3];
 
-
-
-int main(int argc, char *argv[]){
-
-    if(argc!=2) {
-        fprintf(stderr, "Uso: %s puerto\n", argv[0]);
-        return 1;
+    while (p != NULL)
+    {
+        array[i++] = p;
+        p = strtok (NULL, "=");
     }
+    printf("%d\n", i);
 
-    char *host = getenv("BROKER_HOST");
-    int port = atoi(argv[1]);
+    for (i = 0; i < 3; ++i) {
+        printf("%s\n", array[i]);
+	}
+
+
+	return 0;
+}
+
+int create_server(int port)
+{
+	char *host = getenv("BROKER_HOST");
 
     int sockfd, read_size;
 	struct sockaddr_in self;
     struct hostent *he;
-	char buffer[MAXBUF];
-	char *client_message;
+	char *result, client_message_len[sizeof(size_t)];
+
 
     if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0 )
 	{
@@ -291,6 +303,7 @@ int main(int argc, char *argv[]){
 		perror("socket--listen");
 		exit(errno);
 	}
+
 	while (1)
 	{	
         int clientfd;
@@ -300,16 +313,36 @@ int main(int argc, char *argv[]){
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-		while( (read_size = recv(clientfd , client_message , 2000 , 0)) > 0 )
-		{
-			printf("vamos a bver %s hijo", client_message);
-		}
-		send(clientfd, buffer, recv(clientfd, buffer, MAXBUF, 0), 0);
 
+		while( (read_size = recv(clientfd, client_message_len, sizeof(size_t) , 0)) > 0 ){
+			break;
+		}
+		printf("LENGTH: %s\n", client_message_len);
+		char client_message[atoi(client_message_len)];
+
+		while( (read_size = recv(clientfd, client_message, atoi(client_message_len) , 0)) > 0 )
+		{
+			printf("Message received: \n%s\n", client_message);
+		}
+
+		result = detect_method(client_message) == 0 ? "OK" : "ERROR";
+		send(clientfd, result, strlen(result), 0);
+		memset(client_message, '\0', sizeof(client_message));
 		close(clientfd);
 	}
 
 	close(sockfd);
+}
+
+int main(int argc, char *argv[]){
+
+    if(argc!=2) {
+        fprintf(stderr, "Uso: %s puerto\n", argv[0]);
+        return 1;
+    }
+
+	create_server(atoi(argv[1]));
+    
     return 0;
 }
 

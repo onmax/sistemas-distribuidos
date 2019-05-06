@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
 {
     int n;
     char *op, *cola;
-    createMQ("cola1");
+    createMQ("cola1=OTRO");
     do
     {
         printf("\nSeleccione nombre de cola y operación (ctrl-D para terminar)\n\tC:create|D:destroy|P:put\n\tG:get no bloqueante|B:get bloqueante\n");
