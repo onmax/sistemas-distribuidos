@@ -4,8 +4,6 @@
 
 #include <errno.h>
 #include <sys/socket.h>
-#include <resolv.h>
-#include <arpa/inet.h>
 #include <arpa/inet.h>
 
 #include <netdb.h>
@@ -13,10 +11,8 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h> 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdbool.h>
+
 
 #define MAXBUF 1024
 
@@ -57,7 +53,7 @@ int queue_search_node(Queue *q, struct Node *node, struct Node **result)
 int queue_create(Queue *q, const char *name)
 {   
     Queue *temp = malloc(sizeof(Queue));
-    temp->name = strdup(name);
+    temp->name = name;
 	temp->first = NULL;
 	temp->last = NULL;
     *q = *temp;
@@ -76,7 +72,7 @@ int createMQ(const char *name)
 	// Comprobar que no haya colas con ese nombre
 	for(int i = 0; i < queues.size; i++)
 	{
-		if(strcmp(queues.array[i].name,name) == 0)
+		if(strcmp(queues.array[i].name, name) == 0)
 		{
 			return -1;
 		}
@@ -92,7 +88,7 @@ int createMQ(const char *name)
 	}
 	
 	// Crear la cola
-
+	printf("ESTOY CREANDO Y MI NOMBRE ES %s\n", name);
 	Queue queue;
 	if((queue_create(&queue, name)) < 0)
 	{
@@ -144,11 +140,11 @@ int destroyMQ(const char *name)
 
 
 
-int queue_push(Queue *q, const char *msg)
+int queue_push(Queue *q, const void *msg)
 {
     struct Node *node;
     node = (struct Node *)malloc(sizeof(struct Node));
-    node->msg = (char *)malloc(sizeof(char *));
+    node->msg = (void *)malloc(sizeof(void *));
     strcpy(node->msg, msg);
 
     if(q->first == NULL)
@@ -237,47 +233,77 @@ void print_everything(){
 		{
 			free(node);
 		}
+		printf("  %s - %d:\n\t", queue.name, i);
 		queue = queues.array[i];
 		node = queue.last;
-		printf("  %s - %d:\n\t", queue.name, i);
+		if(node == NULL){
+			printf("vacío\n");
+			continue;
+		}
+
 		do {
-			printf(" %s ->", node->msg);
+			printf(" %s ->", (char *)node->msg);
 		} while((node = node->next) != NULL);
 		printf("\n");
 	}
 }
 
-int detect_method(char *message)
+int get_container(const unsigned int clientfd)
 {
-    int i = 0;
-    char *p = strtok (message, "=");
-    char *array[3];
+	size_t container_len = 0;
+	if(recv(clientfd, &container_len, sizeof(size_t), 0) < 0) {
+		return -1;
+	}
+	printf("LENGTH:%d\n", (int)container_len);
 
-    while (p != NULL)
-    {
-        array[i++] = p;
-        p = strtok (NULL, "=");
-    }
-    printf("%d\n", i);
-
-    for (i = 0; i < 3; ++i) {
-        printf("%s\n", array[i]);
+	char serialized[container_len];
+	if(recv(clientfd, serialized, container_len, 0) < 0) {
+		return -1;
 	}
 
+	// Deserialization
+	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
 
-	return 0;
+	Container container;
+	
+	char *operation = serialized;
+	container.operation = *((int *) operation);
+
+	char *queue_name_len = operation + sizeof(int);
+	container.queue_name_len = *((int *) queue_name_len);
+   	
+	char *queue_name = queue_name_len + sizeof(int);
+	container.queue_name = (char *)malloc(container.queue_name_len + 1);
+	memcpy(container.queue_name, queue_name, container.queue_name_len * 4);
+	container.queue_name[container.queue_name_len] = '\0';
+
+	printf("LENGTH:%d\n", (int)strlen(container.queue_name));
+
+	printf("seri: %d LONGITUD NOMBRE->%d\nNombre->|%s|\n", 
+		container.operation, container.queue_name_len, container.queue_name);
+
+	/*
+	switch (container.operation)
+	{
+	case CREATE:
+		return createMQ(container.queue_name);
+		break;
+	
+	default:
+		break;
+	}	
+	*/
+	return -1;
 }
 
 int create_server(int port)
 {
 	char *host = getenv("BROKER_HOST");
 
-    int sockfd, read_size;
+    int sockfd;
 	struct sockaddr_in self;
     struct hostent *he;
-	char *result, client_message_len[sizeof(size_t)];
-
-
+	
     if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0 )
 	{
 		perror("Socket");
@@ -313,21 +339,25 @@ int create_server(int port)
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-
+		get_container(clientfd);
+		/*
 		while( (read_size = recv(clientfd, client_message_len, sizeof(size_t) , 0)) > 0 ){
 			break;
 		}
-		printf("LENGTH: %s\n", client_message_len);
 		char client_message[atoi(client_message_len)];
 
 		while( (read_size = recv(clientfd, client_message, atoi(client_message_len) , 0)) > 0 )
 		{
 			printf("Message received: \n%s\n", client_message);
+			break;
 		}
-
-		result = detect_method(client_message) == 0 ? "OK" : "ERROR";
+		result = detect_method(client_message, msg_from_queue, &size_msg_from_queue) == 0 ? "OK" : "ERROR";
+		print_everything();
 		send(clientfd, result, strlen(result), 0);
 		memset(client_message, '\0', sizeof(client_message));
+		msg_from_queue[0] = '\0';
+		size_msg_from_queue = 0;
+		*/
 		close(clientfd);
 	}
 

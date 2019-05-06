@@ -5,15 +5,31 @@
  * necesitar compartir el broker y la biblioteca, si es que las hubiera.
  */
 
+#define CREATE 1
+#define DESTROY 2
+#define PUT 3
+#define GET 4
+
+typedef struct
+{
+	char operation;
+	char *queue_name;
+	int queue_name_len;
+	void *msg;
+	size_t msg_len;
+} Container;
+
+
 struct Node
 {
-	char *msg;
+	size_t length;
+	void *msg;
 	struct Node *next;
 };
 
 typedef struct
 {
-	char *name;
+	const char *name;
 	struct Node *first;
 	struct Node *last;
 } Queue;
@@ -26,6 +42,6 @@ typedef struct
 
 int queue_create(Queue *q, const char *name);
 int queue_destroy(Queue *q);
-int queue_push(Queue *q, const char *msg);
+int queue_push(Queue *q, const void *msg);
 int queue_pop(Queue *q, void **msg, size_t *tam);
 int queue_search_node(Queue *q, struct Node *node, struct Node **result);

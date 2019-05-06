@@ -14,8 +14,6 @@
 
 #include <errno.h>
 #include <sys/socket.h>
-#include <resolv.h>
-#include <arpa/inet.h>
 #include <arpa/inet.h>
 
 #include <netdb.h>
@@ -56,30 +54,80 @@ int get_connected_socket()
 	return socket_fd;
 }
 
-int createMQ(const char *queue_name)
+int send_request(const unsigned int operation, const char *queue_name, void *msg, size_t msg_len)
 {
 	int socket_fd;
-	
-	const char *method = "CREATE=";
-	char *message = malloc(strlen(queue_name) + strlen(method));
-
+	char *serialized  = 0;
 	char reply[10];
+
 	if((socket_fd = get_connected_socket(&socket_fd)) < 0)
 	{
 		return -1;
 	}
-	strcat(message, method);
-	strcat(message, queue_name);
-	char length[sizeof(size_t)];
-	snprintf(length, sizeof length, "%d", strlen(message));
-	printf("LENGTH: %s\n", length);
-	if( send(socket_fd , length, sizeof(size_t), 0) < 0)
+	size_t size = sizeof(operation) +
+					strlen(queue_name) + sizeof(strlen(queue_name));
+			
+	if(msg != NULL)
+	{
+		size += msg_len + sizeof(msg_len);
+	}
+
+	// Serialization
+	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
+
+	size_t offset = 0;
+	serialized = malloc(size + sizeof(offset));
+
+	serialized[offset] = operation;
+	offset += sizeof(operation);
+
+	serialized[offset] = (int)strlen(queue_name);
+	offset += sizeof(int);
+
+	strncpy(serialized + offset, queue_name, strlen(queue_name));
+	offset += strlen(queue_name);
+	
+	// TODO msg with the SIZE
+	size_t serialized_len = strlen(serialized);
+	printf("Size sent: %lu\n", serialized_len);
+	
+	if(send(socket_fd, (void *)&(serialized_len), sizeof(size_t), 0) < 0)
 	{
 		return -1;
 	}
-	printf("ENVIADO LENGTH\n");
+	
+	if(send(socket_fd, serialized, offset, 0) < 0)
+	{
+		return -1;
+	}	
 
-	if( send(socket_fd , message , strlen(message) , 0) < 0)
+	Container container;
+	
+	char *oo = serialized;
+	container.operation = *((int *) oo);
+
+	char *ll = oo + sizeof(int);
+	container.queue_name_len = *((int *) ll);
+   	
+	char *nn = ll + sizeof(int);
+	container.queue_name = (char *)malloc(container.queue_name_len + 1);
+	memcpy(container.queue_name, nn, container.queue_name_len);
+	container.queue_name[container.queue_name_len] = '\0';
+
+	printf("seri: %d LONGITUD NOMBRE->%d\nNombre->|%s|\n", 
+		container.operation, container.queue_name_len, container.queue_name);
+	return 0;
+	//return strcmp(reply, "OK");
+}
+
+int createMQ(const char *queue_name)
+{
+	if(send_request(CREATE, queue_name, NULL, 0) < 0)
+		return -1;
+	
+	printf("ENVAIDO\n");
+	/*
+	if( send(socket_fd , 'X' , 1 , 0) < 0)
 	{
 		return -1;
 	}
@@ -88,7 +136,7 @@ int createMQ(const char *queue_name)
 	if( recv(socket_fd , reply , 2000 , 0) < 0)
 	{
 		return -1;
-	}
+	} 
 
 	close(socket_fd);
 	printf("RES: %s\n", reply);
@@ -96,6 +144,8 @@ int createMQ(const char *queue_name)
 		return 0;
 	else
 		return -1;
+		*/
+	return 0;
 }
 
 int destroyMQ(const char *queue_name)
