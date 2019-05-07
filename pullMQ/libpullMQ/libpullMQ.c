@@ -54,11 +54,13 @@ int get_connected_socket()
 	return socket_fd;
 }
 
-int send_request(const unsigned int operation, const char *queue_name, void *msg, size_t msg_len)
+//mayve operation type short?
+int send_request(const unsigned int operation, const char *queue_name, 
+				const void *put_msg, size_t put_msg_len,
+				void **get_msg, size_t *get_msg_len)
 {
 	int socket_fd;
 	char *serialized = 0;
-	char reply[10];
 
 	if((socket_fd = get_connected_socket(&socket_fd)) < 0)
 	{
@@ -83,47 +85,92 @@ int send_request(const unsigned int operation, const char *queue_name, void *msg
 	memcpy(serialized + offset, queue_name, strlen(queue_name));
 	offset += strlen(queue_name);
 	
-	if((msg != NULL))
+	if(operation == PUT)
 	{
-	// TODO msg with the SIZE. Not fininished!!!
-		size += msg_len + sizeof(msg_len);
+		size += put_msg_len + sizeof(put_msg_len);
 		serialized = realloc(serialized, size);
 
-		serialized[offset] = (int)strlen(queue_name);
-		offset += sizeof(int);
+		serialized[offset] = put_msg_len;
+		offset += sizeof(size_t);
+
+		memcpy(serialized + offset, put_msg, put_msg_len);
+		offset += put_msg_len;
 	}
 
-	size_t serialized_len = size + sizeof(offset) * 2;
+	// maybe only send size??
+	size_t serialized_len = size + sizeof(offset);
 	if(send(socket_fd, &serialized_len, sizeof(size_t), 0) < 0)
 	{
 		return -1;
 	}
-	
+	// change offset=> 3rd param
 	if(send(socket_fd, serialized, offset, 0) < 0)
 	{
 		return -1;
-	}	
+	}
 
-	// TODO check response str
+	long reply_len = 0;
+	if(recv(socket_fd, &reply_len, sizeof(size_t), 0) < 0)
+	{
+		return -1;
+	}
+
+	if(reply_len < 0)
+	{
+		return 0;
+	}
+
+	char reply[reply_len];
+	if(recv(socket_fd, &reply, reply_len, 0) < 0)
+	{
+		return -1;
+	}
+	close(socket_fd);
+
+	// Deserialize
+	// TODO: Remove Response struct
+	Response response;
+
+	char *status = reply;
+	response.status = *((int *) status);
+	printf("status: %d\n", response.status);
+	if(response.status < 0)
+	{
+		return -1;
+	}
+
+	if(response.status == GET)
+	{
+		*get_msg_len = 0;
+		char *msg_len = status + sizeof(int);
+		*get_msg_len = *((size_t *) msg_len);
+
+		char *msg = msg_len + sizeof(size_t);
+		*get_msg = malloc(*get_msg_len);
+		memcpy(*get_msg, msg, sizeof(void *));
+		printf("ESTO HE LEDIO -> |%s| %u\n", (char *) *get_msg, *msg_len);
+	}
+		
+
 	return 0;
 }
 
 int createMQ(const char *queue_name)
 {
-	return send_request(CREATE, queue_name, NULL, 0);
+	return send_request(CREATE, queue_name, NULL, 0, NULL, 0);
 }
 
 int destroyMQ(const char *queue_name)
 {
-	return send_request(DESTROY, queue_name, NULL, 0);
+	return send_request(DESTROY, queue_name, NULL, 0, NULL, 0);
 }
 
-int put(const char *queue_name, const void *mensaje, size_t tam)
+int put(const char *queue_name, const void *msg, size_t size)
 {
-	return send_request(PUT, queue_name, NULL, 0);
+	return send_request(PUT, queue_name, msg, size, NULL, 0);
 }
 
-int get(const char *queue_name, void **mensaje, size_t *tam, bool blocking)
+int get(const char *queue_name, void **msg, size_t *size, bool blocking)
 {
-	return send_request(GET, queue_name, NULL, 0);
+	return send_request(GET, queue_name, NULL, 0, msg, size);
 }

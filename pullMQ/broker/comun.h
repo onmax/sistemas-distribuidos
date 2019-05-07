@@ -12,17 +12,25 @@
 
 typedef struct
 {
-	char operation;
+	int operation;
 	size_t queue_name_len;
 	char *queue_name;
 	size_t msg_len;
 	void *msg;
-} Container;
+} Request;
+
+typedef struct
+{
+	int status;
+	size_t msg_len;
+	void *msg;
+} Response;
+
 
 
 struct Node
 {
-	size_t length;
+	size_t size;
 	void *msg;
 	struct Node *next;
 };
@@ -42,6 +50,6 @@ typedef struct
 
 int queue_create(Queue *q, const char *name);
 int queue_destroy(Queue *q);
-int queue_push(Queue *q, const void *msg);
+int queue_push(Queue *q, const void *msg, size_t tam);
 int queue_pop(Queue *q, void **msg, size_t *tam);
 int queue_search_node(Queue *q, struct Node *node, struct Node **result);

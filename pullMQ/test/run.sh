@@ -1,5 +1,5 @@
 export BROKER_HOST="127.0.0.1"
-export BROKER_PORT="12334"
+export BROKER_PORT="12352"
 make clean
 make all
 ./test

@@ -43,7 +43,7 @@ int queue_search_node(Queue *q, struct Node *node, struct Node **result)
             return 0;
         }
     } while((current = current->next) != NULL);
-    return 1;
+    return -1;
 }
 
 
@@ -139,11 +139,12 @@ int destroyMQ(const char *name)
 
 
 
-int queue_push(Queue *q, const void *msg)
+int queue_push(Queue *q, const void *msg, size_t size)
 {
     struct Node *node;
     node = (struct Node *)malloc(sizeof(struct Node));
     node->msg = (void *)malloc(sizeof(void *));
+	node->size = size;
     strcpy(node->msg, msg);
 
     if(q->first == NULL)
@@ -161,7 +162,7 @@ int queue_push(Queue *q, const void *msg)
 
 
 
-int put(const char *name, const void *msg, size_t tam)
+int put(const char *name, const void *msg, size_t size)
 {
 	// Obtenemos la cola, devuleve -1 en caso de que no exista
 	Queue q;
@@ -171,7 +172,7 @@ int put(const char *name, const void *msg, size_t tam)
 		return -1;
 	}
 	q = queues.array[index];
-	queue_push(&q, msg);
+	queue_push(&q, msg, size);
 	queues.array[index] = q;
 	return 0;
 }
@@ -179,26 +180,28 @@ int put(const char *name, const void *msg, size_t tam)
 
 int queue_pop(Queue *q, void **msg, size_t *tam)
 {
-
-    if(q->last == NULL)
+    if(q->first == NULL)
     {
         return -1;
     }
     struct Node *first = q->first;
 
     *msg = (void *)first->msg;
-    *tam = strlen(first->msg);
+    *tam = first->size;
     
     struct Node *second;
     if(queue_search_node(q, first, &second) < 0)
     {
-        return -1;
+		printf("Last node\n");
+    	free(first);
+        q->last = NULL;
+		return 0;
     }
 
+    free(first);
     second->next = NULL;
     q->first = second;
 
-    free(first);
 
     return 0;
 }
@@ -247,54 +250,102 @@ void print_everything(){
 	}
 }
 
-int get_container(const unsigned int clientfd)
+Request deserialize(char serialized[])
 {
-	size_t container_len = 0;
-	if(recv(clientfd, &container_len, sizeof(size_t), 0) < 0) {
-		return -1;
-	}
-
-	char serialized[100];
-	if(recv(clientfd, &serialized, container_len + 1, 0) < 0) {
-		return -1;
-	}
-
-	// Deserialization
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
 
-	Container container;
+	Request request;
 	
 	char *operation = serialized;
-	container.operation = *((int *) operation);
+	request.operation = *((int *) operation);
 
 	char *queue_name_len = operation + sizeof(int);
-	container.queue_name_len = *((size_t *) queue_name_len);
+	request.queue_name_len = *((size_t *) queue_name_len);
    	
 	void *queue_name = queue_name_len + sizeof(size_t);
-	container.queue_name = malloc(container.queue_name_len);
-	memcpy(container.queue_name, queue_name, sizeof(void *));
-	container.queue_name[container.queue_name_len] = '\0';
+	request.queue_name = malloc(request.queue_name_len);
+	memcpy(request.queue_name, queue_name, sizeof(void *));
+	request.queue_name[request.queue_name_len] = '\0';
 
-	switch (container.operation)
+	if(request.operation == PUT)
+	{
+		char *msg_len = queue_name + request.queue_name_len;
+		request.msg_len = *((size_t *) msg_len);
+
+		char *msg = msg_len + sizeof(size_t);
+		request.msg = malloc(request.msg_len);
+		memcpy(request.msg, msg, sizeof(void *));
+	}
+	return request;
+}
+
+int process_request(const unsigned int clientfd)
+{
+	size_t request_len = 0;
+	if(recv(clientfd, &request_len, sizeof(size_t), 0) < 0) {
+		return -1;
+	}
+
+	char request_serialized[request_len];
+	// maybe remove +1
+	if(recv(clientfd, &request_serialized, request_len + 1, 0) < 0) {
+		return -1;
+	}
+
+	Request request = deserialize(request_serialized);
+
+	void *msg;
+	size_t msg_len = 0;
+	int status;
+
+	switch (request.operation)
 	{
 		case CREATE:
-			printf("Creating new queue with name: %s\n", container.queue_name);
-			return createMQ(container.queue_name);
+			printf("Creating new queue with name: %s\n", request.queue_name);
+			status = createMQ(request.queue_name);
 			break;
 		case DESTROY:
-			printf("Destroying new queue with name: %s\n", container.queue_name);
-			return destroyMQ(container.queue_name);
+			printf("Destroying new queue with name: %s\n", request.queue_name);
+			status = destroyMQ(request.queue_name);
 			break;
-			/*
 		case PUT:
-			printf("Pushing new item queue with name: %s\n", container.queue_name);
-			return destroyMQ(container.queue_name);
+			printf("Pushing new item queue with name: %s\n", request.queue_name);
+			status = put(request.queue_name, request.msg, request.msg_len);
 			break;
 		case GET:
-			printf("Destroying new queue with name: %s\n", container.queue_name);
-			return destroyMQ(container.queue_name);
-			break;*/
-	}	
+			printf("Getting item with name: %s\n", request.queue_name);
+			status = get(request.queue_name, &msg, &msg_len, false);
+			break;
+	}
+
+	size_t size = sizeof(status) + (request.operation == GET) ? (sizeof(msg) + msg_len) : 0;
+	size_t offset = 0;
+
+	char *response_serialized = 0;
+	response_serialized = calloc(1, size);
+
+	response_serialized[offset] = status < 0 ? -1 : request.operation;
+	offset += sizeof(status);
+
+	if((request.operation == GET))
+	{
+		response_serialized[offset] = msg_len;
+		offset += sizeof(msg_len);
+		memcpy(response_serialized + offset, msg, msg_len);
+		offset += msg_len;
+	}
+
+	// maybe only send size??
+	size_t serialized_len = size + sizeof(offset);
+	if(send(clientfd, &serialized_len, sizeof(size_t), 0) < 0)
+	{
+		return -1;
+	}
+	// change offset=> 3rd param
+	if(send(clientfd, response_serialized, offset, 0) < 0)
+	{
+		return -1;
+	}
 	
 	return -1;
 }
@@ -342,11 +393,11 @@ int create_server(int port)
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-		get_container(clientfd);
+		process_request(clientfd);
+		
 		print_everything();
 		close(clientfd);
 	}
-
 	close(sockfd);
 }
 
