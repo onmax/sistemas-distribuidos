@@ -88,7 +88,6 @@ int createMQ(const char *name)
 	}
 	
 	// Crear la cola
-	printf("ESTOY CREANDO Y MI NOMBRE ES %s\n", name);
 	Queue queue;
 	if((queue_create(&queue, name)) < 0)
 	{
@@ -233,8 +232,8 @@ void print_everything(){
 		{
 			free(node);
 		}
-		printf("  %s - %d:\n\t", queue.name, i);
 		queue = queues.array[i];
+		printf("  %s - %d:\n\t", queue.name, i);
 		node = queue.last;
 		if(node == NULL){
 			printf("vacío\n");
@@ -254,14 +253,11 @@ int get_container(const unsigned int clientfd)
 	if(recv(clientfd, &container_len, sizeof(size_t), 0) < 0) {
 		return -1;
 	}
-	printf("LENGTH:%d\n", (int)container_len);
 
 	char serialized[100];
 	if(recv(clientfd, &serialized, container_len + 1, 0) < 0) {
 		return -1;
 	}
-
-	printf("Puntero: %p\n", serialized);
 
 	// Deserialization
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
@@ -272,29 +268,34 @@ int get_container(const unsigned int clientfd)
 	container.operation = *((int *) operation);
 
 	char *queue_name_len = operation + sizeof(int);
-	container.queue_name_len = *((int *) queue_name_len);
+	container.queue_name_len = *((size_t *) queue_name_len);
    	
-	void *queue_name = queue_name_len + sizeof(int);
+	void *queue_name = queue_name_len + sizeof(size_t);
 	container.queue_name = malloc(container.queue_name_len);
 	memcpy(container.queue_name, queue_name, sizeof(void *));
 	container.queue_name[container.queue_name_len] = '\0';
 
-	printf("LENGTH:%d\n", (int)strlen(container.queue_name));
-
-	printf("seri: %d LONGITUD NOMBRE->%d\nNombre->|%s|\n", 
-		container.operation, container.queue_name_len, (char *)container.queue_name);
-	/*
-
 	switch (container.operation)
 	{
-	case CREATE:
-		return createMQ(container.queue_name);
-		break;
-	
-	default:
-		break;
+		case CREATE:
+			printf("Creating new queue with name: %s\n", container.queue_name);
+			return createMQ(container.queue_name);
+			break;
+		case DESTROY:
+			printf("Destroying new queue with name: %s\n", container.queue_name);
+			return destroyMQ(container.queue_name);
+			break;
+			/*
+		case PUT:
+			printf("Pushing new item queue with name: %s\n", container.queue_name);
+			return destroyMQ(container.queue_name);
+			break;
+		case GET:
+			printf("Destroying new queue with name: %s\n", container.queue_name);
+			return destroyMQ(container.queue_name);
+			break;*/
 	}	
-	*/
+	
 	return -1;
 }
 
@@ -342,24 +343,7 @@ int create_server(int port)
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
 		get_container(clientfd);
-		/*
-		while( (read_size = recv(clientfd, client_message_len, sizeof(size_t) , 0)) > 0 ){
-			break;
-		}
-		char client_message[atoi(client_message_len)];
-
-		while( (read_size = recv(clientfd, client_message, atoi(client_message_len) , 0)) > 0 )
-		{
-			printf("Message received: \n%s\n", client_message);
-			break;
-		}
-		result = detect_method(client_message, msg_from_queue, &size_msg_from_queue) == 0 ? "OK" : "ERROR";
 		print_everything();
-		send(clientfd, result, strlen(result), 0);
-		memset(client_message, '\0', sizeof(client_message));
-		msg_from_queue[0] = '\0';
-		size_msg_from_queue = 0;
-		*/
 		close(clientfd);
 	}
 

@@ -13,10 +13,10 @@
 typedef struct
 {
 	char operation;
+	size_t queue_name_len;
 	char *queue_name;
-	int queue_name_len;
-	void *msg;
 	size_t msg_len;
+	void *msg;
 } Container;
 
 
