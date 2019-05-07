@@ -88,10 +88,10 @@ int send_request(const unsigned int operation, const char *queue_name, void *msg
 	offset += strlen(queue_name);
 	
 	// TODO msg with the SIZE
-	size_t serialized_len = strlen(serialized);
+	size_t serialized_len = size + sizeof(offset);
 	printf("Size sent: %lu\n", serialized_len);
 	
-	if(send(socket_fd, (void *)&(serialized_len), sizeof(size_t), 0) < 0)
+	if(send(socket_fd, &serialized_len, sizeof(size_t), 0) < 0)
 	{
 		return -1;
 	}
@@ -100,6 +100,7 @@ int send_request(const unsigned int operation, const char *queue_name, void *msg
 	{
 		return -1;
 	}	
+	printf("Puntero: %p\n", serialized);
 
 	Container container;
 	

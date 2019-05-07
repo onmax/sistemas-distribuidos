@@ -256,10 +256,12 @@ int get_container(const unsigned int clientfd)
 	}
 	printf("LENGTH:%d\n", (int)container_len);
 
-	char serialized[container_len];
-	if(recv(clientfd, serialized, container_len, 0) < 0) {
+	char serialized[100];
+	if(recv(clientfd, &serialized, container_len + 1, 0) < 0) {
 		return -1;
 	}
+
+	printf("Puntero: %p\n", serialized);
 
 	// Deserialization
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
@@ -272,17 +274,17 @@ int get_container(const unsigned int clientfd)
 	char *queue_name_len = operation + sizeof(int);
 	container.queue_name_len = *((int *) queue_name_len);
    	
-	char *queue_name = queue_name_len + sizeof(int);
-	container.queue_name = (char *)malloc(container.queue_name_len + 1);
-	memcpy(container.queue_name, queue_name, container.queue_name_len * 4);
+	void *queue_name = queue_name_len + sizeof(int);
+	container.queue_name = malloc(container.queue_name_len);
+	memcpy(container.queue_name, queue_name, sizeof(void *));
 	container.queue_name[container.queue_name_len] = '\0';
 
 	printf("LENGTH:%d\n", (int)strlen(container.queue_name));
 
 	printf("seri: %d LONGITUD NOMBRE->%d\nNombre->|%s|\n", 
-		container.operation, container.queue_name_len, container.queue_name);
-
+		container.operation, container.queue_name_len, (char *)container.queue_name);
 	/*
+
 	switch (container.operation)
 	{
 	case CREATE:
