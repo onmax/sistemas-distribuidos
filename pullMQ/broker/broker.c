@@ -26,11 +26,11 @@ int get_index(const char *name)
 	{	
 		if(strcmp(queues.array[i].name,name) == 0)
 		{
-			printf("Founded: %d\n", i);
+			printf(" with index %d\n", i);
 			return i;
 		}
 	}
-	printf("Not found");
+	printf(" which has not been found.");
 	return -1;
 }
 
@@ -70,11 +70,13 @@ int createMQ(const char *name)
 		queues.size = 0;
 		initialized = true;
 	}
+
 	// Comprobar que no haya colas con ese nombre
 	for(int i = 0; i < queues.size; i++)
 	{
 		if(strcmp(queues.array[i].name, name) == 0)
 		{
+			printf("There is a queue already with name %s\n", name);
 			return -1;
 		}
 	}
@@ -146,7 +148,7 @@ int queue_push(Queue *q, const void *msg, size_t size)
     node = (struct Node *)malloc(sizeof(struct Node));
     node->msg = (void *)malloc(sizeof(void *));
 	node->size = size;
-    strcpy(node->msg, msg);
+    memcpy(node->msg, msg, size);
 
     if(q->first == NULL)
     {
@@ -244,10 +246,25 @@ void print_everything(){
 		}
 
 		do {
-			printf(" %s ->", (char *)node->msg);
+			printf(" %s (%lu) ->", (char *)node->msg, node->size);
 		} while((node = node->next) != NULL);
 		printf("\n");
 	}
+}
+
+int send_error(int clientfd)
+{
+	int i = -1;
+	size_t size = sizeof(i);
+	if(send(clientfd, &size, sizeof(size), 0) < 0){
+		return -1;
+	}
+
+	if(send(clientfd, &i, size, 0) < 0){
+		return -1;
+	}
+
+	return 0;
 }
 
 Request deserialize(char serialized[])
@@ -264,7 +281,7 @@ Request deserialize(char serialized[])
    	
 	void *queue_name = queue_name_len + sizeof(size_t);
 	request.queue_name = malloc(request.queue_name_len);
-	memcpy(request.queue_name, queue_name, sizeof(void *));
+	memcpy(request.queue_name, queue_name, request.queue_name_len);
 	request.queue_name[request.queue_name_len] = '\0';
 
 	if(request.operation == PUT)
@@ -274,7 +291,7 @@ Request deserialize(char serialized[])
 
 		char *msg = msg_len + sizeof(size_t);
 		request.msg = malloc(request.msg_len);
-		memcpy(request.msg, msg, sizeof(void *));
+		memcpy(request.msg, msg, request.msg_len);
 	}
 	return request;
 }
@@ -284,12 +301,14 @@ int process_request(const unsigned int clientfd)
 {
 	size_t request_len = 0;
 	if(recv(clientfd, &request_len, sizeof(size_t), 0) < 0) {
-		return -1;
+		send_error(clientfd);
+		return 0;
 	}
 
 	char request_serialized[request_len];
 	// maybe remove +1
 	if(recv(clientfd, &request_serialized, request_len + 1, 0) < 0) {
+		send_error(clientfd);		
 		return -1;
 	}
 
@@ -306,42 +325,45 @@ int process_request(const unsigned int clientfd)
 			status = createMQ(request.queue_name);
 			break;
 		case DESTROY:
-			printf("Destroying new queue with name: %s\n", request.queue_name);
+			printf("Destroying %s", request.queue_name);
 			status = destroyMQ(request.queue_name);
 			break;
 		case PUT:
-			printf("Pushing new item to %s with index ", request.queue_name);
+			printf("Pushing new item to %s", request.queue_name);
 			status = put(request.queue_name, request.msg, request.msg_len);
 			break;
 		case GET:
-			printf("Getting item from %s with index ", request.queue_name);
+			printf("Getting item from %s", request.queue_name);
 			status = get(request.queue_name, &msg, &msg_len, false);
 			break;
 	}
-
-	size_t size = sizeof(status) + (request.operation == GET) ? (sizeof(msg) + msg_len) : 0;
+	size_t size = sizeof(status);
 	size_t offset = 0;
-
+	
 	char *response_serialized = 0;
 	response_serialized = calloc(1, size);
 
-	response_serialized[offset] = status < 0 ? -1 : request.operation;
-	offset += sizeof(status);
+	response_serialized[offset] = status < 0 ? status : request.operation;
+	offset += sizeof(int);
 
 	if(request.operation == GET)
 	{
 		response_serialized[offset] = msg_len;
 		offset += sizeof(msg_len);
+
 		memcpy(response_serialized + offset, msg, msg_len);
 		offset += msg_len;
+
+		size += msg_len + sizeof(msg_len);
 	}
 
 	// maybe only send size??
-	size_t serialized_len = size + sizeof(offset);
+	size_t serialized_len = size;
 	if(send(clientfd, &serialized_len, sizeof(size_t), 0) < 0)
 	{
 		return -1;
 	}
+
 	// change offset=> 3rd param
 	if(send(clientfd, response_serialized, offset, 0) < 0)
 	{

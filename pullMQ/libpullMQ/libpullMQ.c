@@ -109,7 +109,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 		return -1;
 	}
 
-	long reply_len = 0;
+	size_t reply_len = 0;
 	if(recv(socket_fd, &reply_len, sizeof(size_t), 0) < 0)
 	{
 		return -1;
@@ -134,7 +134,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 	char *status = reply;
 	response.status = *((int *) status);
 
-	if(response.status < 0)
+	if(response.status == 255)
 	{
 		return -1;
 	}
@@ -147,9 +147,8 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 		char *msg = msg_len + sizeof(size_t);
 		*get_msg = malloc(*get_msg_len);
-		memcpy(*get_msg, msg, sizeof(void *));
+		memcpy(*get_msg, msg, *get_msg_len);
 	}
-		
 
 	return 0;
 }
