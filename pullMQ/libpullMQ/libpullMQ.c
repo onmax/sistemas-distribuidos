@@ -64,7 +64,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 	if((socket_fd = get_connected_socket(&socket_fd)) < 0)
 	{
-		return -1;
+		//return -1;
 	}
 
 	size_t size = sizeof(operation) +
@@ -84,27 +84,68 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 	memcpy(serialized + offset, queue_name, strlen(queue_name));
 	offset += strlen(queue_name);
-	
 	if(operation == PUT)
 	{
-		size += put_msg_len + sizeof(put_msg_len);
+		size += put_msg_len + sizeof(size_t);
 		serialized = realloc(serialized, size);
+		printf("%lu\n", offset);
 
 		serialized[offset] = put_msg_len;
 		offset += sizeof(size_t);
+		printf("%lu\n", offset);
 
 		memcpy(serialized + offset, put_msg, put_msg_len);
+		printf("|%lu| %lu %lu\n", put_msg_len, size, offset);
 		offset += put_msg_len;
 	}
 
-	// maybe only send size??
-	size_t serialized_len = size + sizeof(offset);
-	if(send(socket_fd, &serialized_len, sizeof(size_t), 0) < 0)
+
+
+
+
+
+	Request request;
+	
+	char *o = serialized;
+	request.operation = *((int *) o);
+
+	char *queue_name_len = o + sizeof(int);
+	request.queue_name_len = *((size_t *) queue_name_len);
+   	
+	void *qq = queue_name_len + sizeof(size_t);
+	request.queue_name = malloc(request.queue_name_len);
+	memcpy(request.queue_name, qq, request.queue_name_len);
+	request.queue_name[request.queue_name_len] = '\0';
+
+	if(request.operation == PUT)
+	{
+		char *mm = qq + request.queue_name_len;
+		request.msg_len = *((size_t *) mm);
+
+		char *msg = mm + sizeof(size_t);
+		request.msg = malloc(request.msg_len);
+		memcpy(request.msg, msg, request.msg_len);
+		printf("||%lu||   ||%lu||", request.msg_len, request.queue_name_len);
+	}
+
+
+
+
+
+	return 0;
+
+
+
+
+
+
+
+	if(send(socket_fd, &size, sizeof(size_t), 0) < 0)
 	{
 		return -1;
 	}
-	// change offset=> 3rd param
-	if(send(socket_fd, serialized, offset, 0) < 0)
+
+	if(send(socket_fd, serialized, size, 0) < 0)
 	{
 		return -1;
 	}
@@ -142,6 +183,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 	if(response.status == GET)
 	{
 		*get_msg_len = 0;
+		*get_msg = 0;
 		char *msg_len = status + sizeof(int);
 		*get_msg_len = *((size_t *) msg_len);
 

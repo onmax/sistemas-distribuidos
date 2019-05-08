@@ -30,7 +30,7 @@ int get_index(const char *name)
 			return i;
 		}
 	}
-	printf(" which has not been found.");
+	printf(" which has not been found.\n");
 	return -1;
 }
 
@@ -296,7 +296,6 @@ Request deserialize(char serialized[])
 	return request;
 }
 
-// TODO send error back to client
 int process_request(const unsigned int clientfd)
 {
 	size_t request_len = 0;
