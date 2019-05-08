@@ -26,10 +26,11 @@ int get_index(const char *name)
 	{	
 		if(strcmp(queues.array[i].name,name) == 0)
 		{
+			printf("Founded: %d\n", i);
 			return i;
 		}
 	}
-
+	printf("Not found");
 	return -1;
 }
 
@@ -192,7 +193,6 @@ int queue_pop(Queue *q, void **msg, size_t *tam)
     struct Node *second;
     if(queue_search_node(q, first, &second) < 0)
     {
-		printf("Last node\n");
     	free(first);
         q->last = NULL;
 		return 0;
@@ -226,7 +226,7 @@ int get(const char *name, void **msg, size_t *tam, bool blocking)
 }
 
 void print_everything(){
-	printf("TAMAÑO ARRAY: %d\n", queues.size);
+	printf("Array:\n");
 	struct Node *node;
 	Queue queue;
 	for(int i = 0; i < queues.size; i++)
@@ -236,10 +236,10 @@ void print_everything(){
 			free(node);
 		}
 		queue = queues.array[i];
-		printf("  %s - %d:\n\t", queue.name, i);
+		printf("  %d. %s: ", i, queue.name);
 		node = queue.last;
 		if(node == NULL){
-			printf("vacío\n");
+			printf("\n");
 			continue;
 		}
 
@@ -279,6 +279,7 @@ Request deserialize(char serialized[])
 	return request;
 }
 
+// TODO send error back to client
 int process_request(const unsigned int clientfd)
 {
 	size_t request_len = 0;
@@ -309,11 +310,11 @@ int process_request(const unsigned int clientfd)
 			status = destroyMQ(request.queue_name);
 			break;
 		case PUT:
-			printf("Pushing new item queue with name: %s\n", request.queue_name);
+			printf("Pushing new item to %s with index ", request.queue_name);
 			status = put(request.queue_name, request.msg, request.msg_len);
 			break;
 		case GET:
-			printf("Getting item with name: %s\n", request.queue_name);
+			printf("Getting item from %s with index ", request.queue_name);
 			status = get(request.queue_name, &msg, &msg_len, false);
 			break;
 	}
@@ -327,7 +328,7 @@ int process_request(const unsigned int clientfd)
 	response_serialized[offset] = status < 0 ? -1 : request.operation;
 	offset += sizeof(status);
 
-	if((request.operation == GET))
+	if(request.operation == GET)
 	{
 		response_serialized[offset] = msg_len;
 		offset += sizeof(msg_len);
@@ -391,11 +392,11 @@ int create_server(int port)
 		socklen_t addrlen = sizeof(client_addr);
 
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
+		printf("\n-----------------------------------------------\n");
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-
 		process_request(clientfd);
-		
 		print_everything();
+		printf("-----------------------------------------------\n");
 		close(clientfd);
 	}
 	close(sockfd);

@@ -1,5 +1,5 @@
 #!/bin/sh
-export BROKER_HOST="127.0.0.1"
+export BROKER_HOST="localhost"
 make clean
 make
-./broker 12352
+./broker 12353

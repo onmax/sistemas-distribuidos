@@ -133,7 +133,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 	char *status = reply;
 	response.status = *((int *) status);
-	printf("status: %d\n", response.status);
+
 	if(response.status < 0)
 	{
 		return -1;
@@ -148,7 +148,6 @@ int send_request(const unsigned int operation, const char *queue_name,
 		char *msg = msg_len + sizeof(size_t);
 		*get_msg = malloc(*get_msg_len);
 		memcpy(*get_msg, msg, sizeof(void *));
-		printf("ESTO HE LEDIO -> |%s| %u\n", (char *) *get_msg, *msg_len);
 	}
 		
 
