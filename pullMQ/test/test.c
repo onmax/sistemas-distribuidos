@@ -35,7 +35,7 @@ void * randomstr(size_t length) {
 
 void test_error()
 {
-
+    e++; 
     printf("Test %d failed\n", tests);
 }
 
@@ -48,16 +48,20 @@ bool panic(char *err)
 
 /*
 *   Test 1
-*   It will create 3 queues and destroy them in the same order
+*   It will create 5 queues and destroy them in the same order
 */
 bool test1()
 {
     tests++;
     if(c("queue 1") < 0) { r panic(ERR_CREATING); }
     if(c("q") < 0) { r panic(ERR_CREATING); }
+    if(c("q2") < 0) { r panic(ERR_CREATING); }
+    if(c("q3") < 0) { r panic(ERR_CREATING); }
     if(c("long name for queue") < 0) { r panic(ERR_CREATING); }
     if(d("queue 1") < 0) { r panic(ERR_DESTROYING); }
     if(d("q") < 0) { r panic(ERR_DESTROYING); }
+    if(d("q2") < 0) { r panic(ERR_DESTROYING); }
+    if(d("q3") < 0) { r panic(ERR_DESTROYING); }
     if(d("long name for queue") < 0) { r panic(ERR_DESTROYING); }
     return true;
 }
@@ -148,32 +152,31 @@ bool test6()
 bool test7()
 {
     tests++;
-    size_t size = 10000;
+    size_t size = 20;
     void *msg = randomstr(size);
     
     void *msg_get = 0;
     size_t get_msg_len = 0;
     
-    if(c("queue") < 0) { r panic(ERR_CREATING); }
-    if(p("queue", msg, size) < 0) { r panic(ERR_PUSHING); }
-    if(g("queue", &msg_get, &get_msg_len, false) == 0) { r panic(ERR_GETTING); }
-    if(d("queue") < 0) { r panic(ERR_DESTROYING); }
+    if(c("a very long long name") < 0) { r panic(ERR_CREATING); }
+    if(p("a very long long name", msg, size) < 0) { r panic(ERR_PUSHING); }
+    if(g("a very long long name", &msg_get, &get_msg_len, false) == 0) { r panic(ERR_GETTING); }
+    if(d("a very long long name") < 0) { r panic(ERR_DESTROYING); }
     return true;
 }
 
 int main(int argc, char *argv[])
 {
     printf("\n\nTests:\n");
-
     /*
-    if(!test1()) { test_error(); e++; };
-    if(!test2()) { test_error(); e++; };
-    if(!test3()) { test_error(); e++; };
-    if(!test4()) { test_error(); e++; };
-    if(!test5()) { test_error(); e++; };
-    if(!test6()) { test_error(); e++; };
+    if(!test1()) { test_error(); };
+    if(!test2()) { test_error(); };
+    if(!test3()) { test_error(); };
+    if(!test4()) { test_error(); };
+    if(!test5()) { test_error(); };
+    if(!test6()) { test_error(); };
     */
-    if(!test7()) { test_error(); e++; };
+    if(!test7()) { test_error(); };
     double percentage = (tests - e) * 100 / tests;
     printf("%.2f %% tests passed\nRemember to check server side\n", percentage);
     return 0;

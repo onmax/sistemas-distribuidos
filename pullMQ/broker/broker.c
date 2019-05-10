@@ -175,8 +175,14 @@ int put(const char *name, const void *msg, size_t size)
 		return -1;
 	}
 	q = queues.array[index];
-	queue_push(&q, msg, size);
+	printf("esta no\n");
+
+	queue_push(&q, msg, ++size);
+	printf("esta si\n");
+
 	queues.array[index] = q;
+	printf("esta quizas\n");
+
 	return 0;
 }
 
@@ -275,13 +281,13 @@ Request deserialize(char serialized[])
 	
 	char *operation = serialized;
 	request.operation = *((int *) operation);
-
 	char *queue_name_len = operation + sizeof(int);
 	request.queue_name_len = *((size_t *) queue_name_len);
    	
 	void *queue_name = queue_name_len + sizeof(size_t);
 	request.queue_name = malloc(request.queue_name_len);
 	memcpy(request.queue_name, queue_name, request.queue_name_len);
+	// TODO: Maybe remove \0
 	request.queue_name[request.queue_name_len] = '\0';
 
 	if(request.operation == PUT)
@@ -289,7 +295,7 @@ Request deserialize(char serialized[])
 		char *msg_len = queue_name + request.queue_name_len;
 		request.msg_len = *((size_t *) msg_len);
 
-		char *msg = msg_len + sizeof(size_t);
+		void *msg = msg_len + sizeof(size_t);
 		request.msg = malloc(request.msg_len);
 		memcpy(request.msg, msg, request.msg_len);
 	}
@@ -336,11 +342,14 @@ int process_request(const unsigned int clientfd)
 			status = get(request.queue_name, &msg, &msg_len, false);
 			break;
 	}
-	size_t size = sizeof(status);
+	size_t size = sizeof(status) + (request.operation == GET ? (msg_len + sizeof(msg_len)): 0);
 	size_t offset = 0;
-	
+	printf("where are yo?\n");
 	char *response_serialized = 0;
+	printf("Size calloc : %lu\n", size);
+
 	response_serialized = calloc(1, size);
+	printf("Te pille\n");
 
 	response_serialized[offset] = status < 0 ? status : request.operation;
 	offset += sizeof(int);
@@ -355,7 +364,6 @@ int process_request(const unsigned int clientfd)
 
 		size += msg_len + sizeof(msg_len);
 	}
-
 	// maybe only send size??
 	size_t serialized_len = size;
 	if(send(clientfd, &serialized_len, sizeof(size_t), 0) < 0)

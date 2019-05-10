@@ -22,6 +22,50 @@
 #include <string.h>
 #include <unistd.h> 
 
+
+
+
+
+
+Request 	deserialize(char serialized[])
+{
+	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
+
+	Request request;
+	
+	char *operation = serialized;
+	request.operation = *((int *) operation);
+	printf("op: %d\n", request.operation);
+	char *queue_name_len = operation + sizeof(int);
+	request.queue_name_len = *((size_t *) queue_name_len);
+   	
+	void *queue_name = queue_name_len + sizeof(size_t);
+	request.queue_name = malloc(request.queue_name_len);
+	memcpy(request.queue_name, queue_name, request.queue_name_len);
+	// TODO: Maybe remove \0
+	request.queue_name[request.queue_name_len] = '\0';
+	if(request.operation == PUT)
+	{
+		char *msg_len = queue_name + request.queue_name_len;
+		request.msg_len = *((size_t *) msg_len);
+		printf("added: %lu\n", request.msg_len);
+
+		void *msg = msg_len + sizeof(size_t);
+		request.msg = malloc(request.msg_len);
+		memcpy(request.msg, msg, request.msg_len);
+	}
+	return request;
+}
+
+
+
+
+
+
+
+
+
+
 int get_connected_socket()
 {
 	int socket_fd;
@@ -61,18 +105,15 @@ int send_request(const unsigned int operation, const char *queue_name,
 {
 	int socket_fd;
 	char *serialized = 0;
-
 	if((socket_fd = get_connected_socket(&socket_fd)) < 0)
 	{
-		//return -1;
+		return -1;
 	}
-
 	size_t size = sizeof(operation) +
-					strlen(queue_name) + sizeof(strlen(queue_name)) * 2;
-					
+					strlen(queue_name) + sizeof(strlen(queue_name))
+					+ (operation == PUT ? put_msg_len + sizeof(put_msg_len) : 0);
 	// Serialization
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
-
 	size_t offset = 0;
 	serialized = calloc(1, size);
 
@@ -84,67 +125,20 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 	memcpy(serialized + offset, queue_name, strlen(queue_name));
 	offset += strlen(queue_name);
+
 	if(operation == PUT)
 	{
-		size += put_msg_len + sizeof(size_t);
-		serialized = realloc(serialized, size);
-		printf("%lu\n", offset);
-
-		serialized[offset] = put_msg_len;
-		offset += sizeof(size_t);
-		printf("%lu\n", offset);
+		memcpy(serialized + offset, &put_msg_len, sizeof(put_msg));			
+		offset += sizeof(put_msg_len);
 
 		memcpy(serialized + offset, put_msg, put_msg_len);
-		printf("|%lu| %lu %lu\n", put_msg_len, size, offset);
 		offset += put_msg_len;
 	}
-
-
-
-
-
-
-	Request request;
-	
-	char *o = serialized;
-	request.operation = *((int *) o);
-
-	char *queue_name_len = o + sizeof(int);
-	request.queue_name_len = *((size_t *) queue_name_len);
-   	
-	void *qq = queue_name_len + sizeof(size_t);
-	request.queue_name = malloc(request.queue_name_len);
-	memcpy(request.queue_name, qq, request.queue_name_len);
-	request.queue_name[request.queue_name_len] = '\0';
-
-	if(request.operation == PUT)
-	{
-		char *mm = qq + request.queue_name_len;
-		request.msg_len = *((size_t *) mm);
-
-		char *msg = mm + sizeof(size_t);
-		request.msg = malloc(request.msg_len);
-		memcpy(request.msg, msg, request.msg_len);
-		printf("||%lu||   ||%lu||", request.msg_len, request.queue_name_len);
-	}
-
-
-
-
-
-	return 0;
-
-
-
-
-
-
 
 	if(send(socket_fd, &size, sizeof(size_t), 0) < 0)
 	{
 		return -1;
 	}
-
 	if(send(socket_fd, serialized, size, 0) < 0)
 	{
 		return -1;
