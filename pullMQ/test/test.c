@@ -82,11 +82,11 @@ bool test2()
     if(c(queue) < 0) { r panic(ERR_CREATING); }
     if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
     if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
+    if(d(queue)) { r panic(ERR_DESTROYING); }
 
     if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
     if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
 
-    if(d(queue)) { r panic(ERR_DESTROYING); }
 
     return true;
 }
@@ -152,7 +152,7 @@ bool test6()
 bool test7()
 {
     tests++;
-    size_t size = 20;
+    size_t size = 1000;
     void *msg = randomstr(size);
     
     void *msg_get = 0;
@@ -160,21 +160,25 @@ bool test7()
     
     if(c("a very long long name") < 0) { r panic(ERR_CREATING); }
     if(p("a very long long name", msg, size) < 0) { r panic(ERR_PUSHING); }
-    if(g("a very long long name", &msg_get, &get_msg_len, false) == 0) { r panic(ERR_GETTING); }
+    if(g("a very long long name", &msg_get, &get_msg_len, false) < 0) { r panic(ERR_GETTING); }
     if(d("a very long long name") < 0) { r panic(ERR_DESTROYING); }
+    
+    if(memcmp(msg_get, msg, size) != 0) { r panic(MSGS_NOT_EQUAL); }
+    if(size != get_msg_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+
     return true;
 }
 
 int main(int argc, char *argv[])
 {
     printf("\n\nTests:\n");
-    /*
     if(!test1()) { test_error(); };
     if(!test2()) { test_error(); };
     if(!test3()) { test_error(); };
     if(!test4()) { test_error(); };
     if(!test5()) { test_error(); };
     if(!test6()) { test_error(); };
+   /*
     */
     if(!test7()) { test_error(); };
     double percentage = (tests - e) * 100 / tests;

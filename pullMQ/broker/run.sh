@@ -1,5 +1,5 @@
 #!/bin/sh
-export BROKER_HOST="localhost"
+export BROKER_HOST="onmax"
 make clean
 make
-./broker 12395
+./broker 12391

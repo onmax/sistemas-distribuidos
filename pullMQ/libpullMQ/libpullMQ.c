@@ -168,7 +168,6 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 	char *status = reply;
 	response.status = *((int *) status);
-
 	if(response.status == 255)
 	{
 		return -1;
@@ -180,10 +179,11 @@ int send_request(const unsigned int operation, const char *queue_name,
 		*get_msg = 0;
 		char *msg_len = status + sizeof(int);
 		*get_msg_len = *((size_t *) msg_len);
-
+		printf("%lu\n", *((size_t *) msg_len));
 		char *msg = msg_len + sizeof(size_t);
 		*get_msg = malloc(*get_msg_len);
 		memcpy(*get_msg, msg, *get_msg_len);
+
 	}
 
 	return 0;

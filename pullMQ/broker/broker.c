@@ -54,6 +54,7 @@ int queue_search_node(Queue *q, struct Node *node, struct Node **result)
 int queue_create(Queue *q, const char *name)
 {   
     Queue *temp = malloc(sizeof(Queue));
+	// TODO check malloc
     temp->name = name;
 	temp->first = NULL;
 	temp->last = NULL;
@@ -107,7 +108,13 @@ int createMQ(const char *name)
 
 int queue_destroy(Queue *q)
 {
-    //free(q);
+   struct Node* head = q->first;
+
+   while (head != NULL)
+   {
+	   free(head);
+	   head = head->next;
+   }
     return 0;
 }
 
@@ -146,7 +153,7 @@ int queue_push(Queue *q, const void *msg, size_t size)
 {
     struct Node *node;
     node = (struct Node *)malloc(sizeof(struct Node));
-    node->msg = (void *)malloc(sizeof(void *));
+    node->msg = (void *)malloc(size);
 	node->size = size;
     memcpy(node->msg, msg, size);
 
@@ -175,13 +182,10 @@ int put(const char *name, const void *msg, size_t size)
 		return -1;
 	}
 	q = queues.array[index];
-	printf("esta no\n");
 
-	queue_push(&q, msg, ++size);
-	printf("esta si\n");
+	queue_push(&q, msg, size);
 
 	queues.array[index] = q;
-	printf("esta quizas\n");
 
 	return 0;
 }
@@ -342,26 +346,28 @@ int process_request(const unsigned int clientfd)
 			status = get(request.queue_name, &msg, &msg_len, false);
 			break;
 	}
-	size_t size = sizeof(status) + (request.operation == GET ? (msg_len + sizeof(msg_len)): 0);
+
+	if(request.operation == PUT)
+	{
+		free(request.msg);
+	}
+
+	size_t size = sizeof(status) + (request.operation == GET && status == 0 ? (msg_len + sizeof(msg_len)): 0);
 	size_t offset = 0;
-	printf("where are yo?\n");
 	char *response_serialized = 0;
-	printf("Size calloc : %lu\n", size);
+
 
 	response_serialized = calloc(1, size);
-	printf("Te pille\n");
 
 	response_serialized[offset] = status < 0 ? status : request.operation;
 	offset += sizeof(int);
-
-	if(request.operation == GET)
+	if(request.operation == GET && status == 0)
 	{
 		response_serialized[offset] = msg_len;
 		offset += sizeof(msg_len);
-
+		printf("######\nLOLL %lu\n", msg_len);
 		memcpy(response_serialized + offset, msg, msg_len);
 		offset += msg_len;
-
 		size += msg_len + sizeof(msg_len);
 	}
 	// maybe only send size??
