@@ -19,14 +19,6 @@ typedef struct
 	void *msg;
 } Request;
 
-typedef struct
-{
-	int status;
-	size_t msg_len;
-	void *msg;
-} Response;
-
-
 
 struct Node
 {

@@ -24,7 +24,7 @@ void * randomstr(size_t length) {
     //https://codereview.stackexchange.com/questions/29198/random-string-generator-in-c
     char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-#'?!";        
     char *random = NULL;
-    random = malloc(sizeof(char) * (length));
+    random = malloc(length);
     if (length && random) {            
         for (int n = 0; n < length; n++) {            
             random[n] = charset[rand() % (int)(sizeof(charset) -1)];
@@ -87,7 +87,7 @@ bool test2()
     if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
     if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
 
-
+    free(msg_get);
     return true;
 }
 
@@ -152,7 +152,7 @@ bool test6()
 bool test7()
 {
     tests++;
-    size_t size = 1000;
+    size_t size = 10000;
     void *msg = randomstr(size);
     
     void *msg_get = 0;
@@ -162,9 +162,170 @@ bool test7()
     if(p("a very long long name", msg, size) < 0) { r panic(ERR_PUSHING); }
     if(g("a very long long name", &msg_get, &get_msg_len, false) < 0) { r panic(ERR_GETTING); }
     if(d("a very long long name") < 0) { r panic(ERR_DESTROYING); }
-    
+
     if(memcmp(msg_get, msg, size) != 0) { r panic(MSGS_NOT_EQUAL); }
     if(size != get_msg_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+    
+    free(msg);
+    free(msg_get);
+    return true;
+}
+
+/**
+ * Test 8
+ * It will crete a some queues and destroy them in different order
+ */
+bool test8()
+{
+    tests++;
+
+    char *queue1 = "queue 1";
+    char *queue2 = "q2";
+    char *queue3 = "queue with name long, seriously, really long";
+    char *queue4 = "ok, i am a queue";
+
+    if(c(queue1) < 0) { r panic(ERR_CREATING); }
+    if(c(queue2) < 0) { r panic(ERR_CREATING); }
+    if(c(queue3) < 0) { r panic(ERR_CREATING); }
+    if(c(queue4) < 0) { r panic(ERR_CREATING); }
+
+    if(d(queue4) < 0) { r panic(ERR_DESTROYING); }
+    if(d(queue2) < 0) { r panic(ERR_DESTROYING); }
+    if(d(queue3) < 0) { r panic(ERR_DESTROYING); }
+    if(d(queue1) < 0) { r panic(ERR_DESTROYING); }
+    
+    return true;
+}
+
+/**
+ * Test 9
+ * It will crete a some queues, push random string in some of them getting back
+ */
+bool test9()
+{
+    tests++;
+
+    char *queue1 = "queue 1";
+    char *queue2 = "q2";
+    char *queue3 = "queue with name long, seriously, really long";
+    char *queue4 = "ok, i am a queue";
+
+    size_t msg_len1 = 20;
+    size_t msg_len2 = 30;
+    void *msg1 = randomstr(msg_len1);
+    void *msg2 = randomstr(msg_len2);
+
+    void *get_msg1, *get_msg2;
+    size_t get_msg_len1, get_msg_len2 = 0;
+
+    if(c(queue1) < 0) { r panic(ERR_CREATING); }
+    if(c(queue2) < 0) { r panic(ERR_CREATING); }
+    if(c(queue3) < 0) { r panic(ERR_CREATING); }
+    if(c(queue4) < 0) { r panic(ERR_CREATING); }
+
+    if(p(queue3, msg1, msg_len1) < 0) { r panic(ERR_PUSHING); }
+    if(p(queue2, msg2, msg_len2) < 0) { r panic(ERR_PUSHING); }
+
+    if(g(queue3, &get_msg1, &get_msg_len1, false) < 0) { r panic(ERR_GETTING); }
+    if(memcmp(msg1, get_msg1, msg_len1) != 0) { r panic(MSGS_NOT_EQUAL); }
+    if(get_msg_len1 != msg_len1) { r panic(MSGS_LEN_NOT_EQUAL); }
+
+    if(g(queue2, &get_msg2, &get_msg_len2, false) < 0) { r panic(ERR_GETTING); }
+    if(memcmp(get_msg2, msg2, msg_len2) != 0) { r panic(MSGS_NOT_EQUAL); }
+    if(get_msg_len2 != msg_len2) { r panic(MSGS_LEN_NOT_EQUAL); }
+   
+    if(d(queue1) < 0) { r panic(ERR_DESTROYING); }
+    if(d(queue2) < 0) { r panic(ERR_DESTROYING); }
+    if(d(queue3) < 0) { r panic(ERR_DESTROYING); }
+    if(d(queue4) < 0) { r panic(ERR_DESTROYING); }
+
+    free(msg1);
+    free(msg2);
+    free(get_msg1);
+    free(get_msg2);
+    return true;
+}
+
+/**
+ * Test 10
+ * It will crete create queue, push string, get string, delete queue 10 times
+ */
+bool test10()
+{
+    tests++;
+    char *queue = "queue 1";
+    void *msg = "This is a normal message";
+    size_t msg_len = 24; 
+    void *msg_get = 0;
+    size_t msg_get_len = 0;
+
+    for(int i=0; i < 10; i++)
+    {
+        if(c(queue) < 0) { r panic(ERR_CREATING); }
+        if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
+        if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
+        if(d(queue)) { r panic(ERR_DESTROYING); }
+
+        if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
+        if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+        
+        free(msg_get);
+    }
+    return true;
+}
+
+/**
+ * Test 10
+ * It will crete create queue, push string, get string, 10 times and then delete queue
+ * */
+bool test11()
+{
+    tests++;
+    char *queue = "queue 1";
+    void *msg = "This is a normal message";
+    size_t msg_len = 24; 
+    void *msg_get = 0;
+    size_t msg_get_len = 0;
+
+    if(c(queue) < 0) { r panic(ERR_CREATING); }
+    for(int i=0; i < 10; i++)
+    {
+        if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
+        if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
+
+        if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
+        if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+
+        free(msg_get);
+    }
+    if(d(queue)) { r panic(ERR_DESTROYING); }
+
+    return true;
+}
+
+
+/**
+ * Test 12
+ * It will crete create queue, push string, get string, delete with a long name
+ */
+bool test12()
+{
+    tests++;
+    size_t name_len = 2000;
+    char *queue = (char *)randomstr(name_len);
+    queue[name_len] = '\0';
+    void *msg = "This is a normal message";
+    size_t msg_len = 24; 
+    void *msg_get = 0;
+    size_t msg_get_len = 0;
+
+    if(c(queue) < 0) { r panic(ERR_CREATING); }
+    if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
+    if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
+    if(d(queue)) { r panic(ERR_DESTROYING); }
+
+    if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
+    if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
 
     return true;
 }
@@ -178,9 +339,15 @@ int main(int argc, char *argv[])
     if(!test4()) { test_error(); };
     if(!test5()) { test_error(); };
     if(!test6()) { test_error(); };
-   /*
-    */
     if(!test7()) { test_error(); };
+    if(!test8()) { test_error(); };
+    if(!test9()) { test_error(); };
+    if(!test10()) { test_error(); };
+    if(!test11()) { test_error(); };
+    if(!test12()) { test_error(); };
+    /*
+    */
+
     double percentage = (tests - e) * 100 / tests;
     printf("%.2f %% tests passed\nRemember to check server side\n", percentage);
     return 0;
