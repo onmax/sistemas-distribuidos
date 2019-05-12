@@ -152,7 +152,7 @@ bool test6()
 bool test7()
 {
     tests++;
-    size_t size = 100000;
+    size_t size = 10000;
     void *msg = randomstr(size);
     
     void *msg_get = 0;
