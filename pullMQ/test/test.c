@@ -152,7 +152,7 @@ bool test6()
 bool test7()
 {
     tests++;
-    size_t size = 10000;
+    size_t size = 100000;
     void *msg = randomstr(size);
     
     void *msg_get = 0;
@@ -311,7 +311,7 @@ bool test11()
 bool test12()
 {
     tests++;
-    size_t name_len = 2000;
+    size_t name_len = 10000;
     char *queue = (char *)randomstr(name_len);
     queue[name_len] = '\0';
     void *msg = "This is a normal message";
@@ -345,8 +345,6 @@ int main(int argc, char *argv[])
     if(!test10()) { test_error(); };
     if(!test11()) { test_error(); };
     if(!test12()) { test_error(); };
-    /*
-    */
 
     double percentage = (tests - e) * 100 / tests;
     printf("%.2f %% tests passed\nRemember to check server side\n", percentage);

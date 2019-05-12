@@ -50,9 +50,12 @@ int queue_search_node(Queue *q, struct Node *node, struct Node **result)
 
 int queue_create(Queue *q, const char *name)
 {
-	Queue *temp = malloc(sizeof(Queue));
 	// TODO check malloc
-	temp->name = name;
+	Queue *temp;
+	temp = (Queue *)malloc(sizeof(Queue));
+	char *tempname = (char *)malloc(strlen(name));
+	strcpy(tempname, name);
+	temp->name = tempname;
 	temp->first = NULL;
 	temp->last = NULL;
 	*q = *temp;
@@ -121,7 +124,6 @@ int destroyMQ(const char *name)
 	{
 		return -1;
 	}
-	free(queues.array[index].name);
 	q = queues.array[index];
 	queue_destroy(&q);
 	
@@ -146,8 +148,8 @@ int queue_push(Queue *q, const void *msg, size_t size)
 	struct Node *node;
 	node = (struct Node *)malloc(sizeof(struct Node));
 	node->msg = (void *)malloc(size);
-	node->size = size;
 	memcpy(node->msg, msg, size);
+	node->size = size;
 
 	if (q->first == NULL)
 	{
@@ -265,7 +267,7 @@ int send_error(int clientfd)
 	return 0;
 }
 
-Request deserialize(char serialized[])
+Request  deserialize(char serialized[])
 {
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
 
@@ -366,6 +368,7 @@ int process_request(const unsigned int clientfd)
 		return -1;
 	}
 	free(response_serialized);
+	msg = 0;
 	if(request.operation == PUT)
 	{
 		free(request.msg);
