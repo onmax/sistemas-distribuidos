@@ -45,3 +45,5 @@ int queue_destroy(Queue *q);
 int queue_push(Queue *q, const void *msg, size_t tam);
 int queue_pop(Queue *q, void **msg, size_t *tam);
 int queue_search_node(Queue *q, struct Node *node, struct Node **result);
+void print_name(const char *name);
+void print_message(const void *message, size_t size);

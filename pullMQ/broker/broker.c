@@ -75,7 +75,7 @@ int createMQ(const char *name)
 	{
 		if (strcmp(queues.array[i].name, name) == 0)
 		{
-			printf("There is a queue already with name %s\n", name);
+			printf("There is a queue already with name \n");print_name(name);
 			return -1;
 		}
 	}
@@ -238,7 +238,7 @@ void print_everything()
 	for (int i = 0; i < queues.size; i++)
 	{
 		queue = queues.array[i];
-		printf("  %d. %s: ", i, queue.name);
+		printf("  %d. ", i);print_name(queue.name);
 		node = queue.last;
 		if (node == NULL)
 		{
@@ -248,7 +248,7 @@ void print_everything()
 
 		do
 		{
-			printf(" %s (%lu) ->", (char *)node->msg, node->size);
+			print_message(node->msg, node->size);
 		} while ((node = node->next) != NULL);
 		printf("\n");
 	}
@@ -326,19 +326,19 @@ int process_request(const unsigned int clientfd)
 	switch (request.operation)
 	{
 	case CREATE:
-		printf("Creating new queue with name: %s\n", request.queue_name);
+		printf("Creating new queue with name: ");print_name(request.queue_name);
 		status = createMQ(request.queue_name);
 		break;
 	case DESTROY:
-		printf("Destroying %s", request.queue_name);
+		printf("Destroying ");print_name(request.queue_name);
 		status = destroyMQ(request.queue_name);
 		break;
 	case PUT:
-		printf("Pushing new item to %s", request.queue_name);
+		printf("Pushing new item to ");print_name(request.queue_name);
 		status = put(request.queue_name, request.msg, request.msg_len);
 		break;
 	case GET:
-		printf("Getting item from %s", request.queue_name);
+		printf("Getting item from ");print_name(request.queue_name);
 		status = get(request.queue_name, &msg, &msg_len, false);
 		break;
 	}
@@ -424,7 +424,7 @@ int create_server(int port)
 		printf("\n-----------------------------------------------\n");
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 		process_request(clientfd);
-		//print_everything();
+		print_everything();
 		printf("-----------------------------------------------\n");
 		close(clientfd);
 	}
