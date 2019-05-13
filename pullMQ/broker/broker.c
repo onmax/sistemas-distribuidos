@@ -128,18 +128,21 @@ int destroyMQ(const char *name)
 	queue_destroy(&q);
 	
 	queues.size--;
-	Queue *temp = (Queue *)malloc(queues.size * sizeof(*queues.array));
-	printf("DELETE %d\n", (int)(queues.size * sizeof(*queues.array)));
-	memmove(
-		temp,
-		queues.array,
-		(index + 1) * sizeof(*queues.array));
 
-	memmove(
-		temp + index,
-		queues.array + index + 1,
-		(queues.size - index) * sizeof(*queues.array));
-	free(queues.array);
+	// allocate an array with a size 1 less than the current one
+	Queue* temp = malloc(queues.size * sizeof(Queue)); 
+
+	// copy everything BEFORE the index
+    memcpy(temp, queues.array, index * sizeof(Queue)); 
+    
+	if (index != queues.size)
+		// copy everything AFTER the index
+        memcpy(
+			temp+index, 
+			queues.array + index + 1, 
+			(queues.size - index) * sizeof(Queue)); 
+
+    free (queues.array);
 	queues.array = temp;
 	return 0;
 }
@@ -346,7 +349,6 @@ int process_request(const unsigned int clientfd)
 	char *response_serialized = 0;
 
 	response_serialized = malloc(size);
-	printf("size: %lu\n", size);
 	int i = status < 0 ? status : request.operation;
 	memcpy(response_serialized + offset, &i, sizeof(i));
 	offset += sizeof(int);
@@ -422,7 +424,7 @@ int create_server(int port)
 		printf("\n-----------------------------------------------\n");
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 		process_request(clientfd);
-		print_everything();
+		//print_everything();
 		printf("-----------------------------------------------\n");
 		close(clientfd);
 	}

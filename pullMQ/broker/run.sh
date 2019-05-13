@@ -2,4 +2,4 @@
 export BROKER_HOST="onmax"
 make clean
 make
-ltrace ./broker 12383
+./broker 12302

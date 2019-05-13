@@ -140,7 +140,6 @@ int send_request(const unsigned int operation, const char *queue_name,
 		char *msg = msg_len + sizeof(size_t);
 		*get_msg = malloc(*get_msg_len);
 		memcpy(*get_msg, msg, *get_msg_len);
-		printf("siuze : %lu\n", *get_msg_len);
 	}
 
 	return 0;
