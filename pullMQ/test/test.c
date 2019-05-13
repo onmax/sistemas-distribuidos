@@ -338,11 +338,11 @@ bool test12()
 bool test13()
 {
     tests++;
-    size_t name_len = 100000;
+    size_t name_len = 1000000;
     char *queue = (char *)randomstr(name_len);
     queue[name_len] = '\0';
 
-    size_t size = 123456;
+    size_t size = 1234560;
     void *msg = randomstr(size);
     
     void *msg_get = 0;
