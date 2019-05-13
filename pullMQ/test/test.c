@@ -330,6 +330,37 @@ bool test12()
     return true;
 }
 
+
+/**
+ * Test 13
+ * It will crete create queue with long name and push a long message, then get it back and read it
+ */
+bool test13()
+{
+    tests++;
+    size_t name_len = 100000;
+    char *queue = (char *)randomstr(name_len);
+    queue[name_len] = '\0';
+
+    size_t size = 100000;
+    void *msg = randomstr(size);
+    
+    void *msg_get = 0;
+    size_t get_msg_len = 0;
+    
+    if(c(queue) < 0) { r panic(ERR_CREATING); }
+    if(p(queue, msg, size) < 0) { r panic(ERR_PUSHING); }
+    if(g(queue, &msg_get, &get_msg_len, false) < 0) { r panic(ERR_GETTING); }
+    if(d(queue) < 0) { r panic(ERR_DESTROYING); }
+
+    if(memcmp(msg_get, msg, size) != 0) { r panic(MSGS_NOT_EQUAL); }
+    if(size != get_msg_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+    
+    free(msg);
+    free(msg_get);
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     printf("\n\nTests:\n");
@@ -345,6 +376,7 @@ int main(int argc, char *argv[])
     if(!test10()) { test_error(); };
     if(!test11()) { test_error(); };
     if(!test12()) { test_error(); };
+    if(!test13()) { test_error(); };
 
     double percentage = (tests - e) * 100 / tests;
     printf("%.2f %% tests passed\nRemember to check server side\n", percentage);
