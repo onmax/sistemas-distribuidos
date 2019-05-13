@@ -105,7 +105,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 	}
 	free(serialized);
 	size_t reply_len = 0;
-	if(recv(socket_fd, &reply_len, sizeof(size_t), 0) < 0)
+	if(recv(socket_fd, &reply_len, sizeof(size_t), MSG_WAITALL) < 0)
 	{
 		return -1;
 	}
@@ -116,7 +116,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 	}
 
 	char reply[reply_len];
-	if(recv(socket_fd, &reply, reply_len, 0) < 0)
+	if(recv(socket_fd, &reply, reply_len, MSG_WAITALL) < 0)
 	{
 		return -1;
 	}
@@ -140,6 +140,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 		char *msg = msg_len + sizeof(size_t);
 		*get_msg = malloc(*get_msg_len);
 		memcpy(*get_msg, msg, *get_msg_len);
+		printf("siuze : %lu\n", *get_msg_len);
 	}
 
 	return 0;

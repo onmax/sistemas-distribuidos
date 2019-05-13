@@ -29,7 +29,7 @@ struct Node
 
 typedef struct
 {
-	const char *name;
+	char *name;
 	struct Node *first;
 	struct Node *last;
 } Queue;

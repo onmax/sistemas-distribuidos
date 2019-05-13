@@ -53,9 +53,8 @@ int queue_create(Queue *q, const char *name)
 	// TODO check malloc
 	Queue *temp;
 	temp = (Queue *)malloc(sizeof(Queue));
-	char *tempname = (char *)malloc(strlen(name));
-	strcpy(tempname, name);
-	temp->name = tempname;
+	temp->name = (char *)malloc(strlen(name));
+	strcpy(temp->name, name);
 	temp->first = NULL;
 	temp->last = NULL;
 	*q = *temp;
@@ -125,10 +124,12 @@ int destroyMQ(const char *name)
 		return -1;
 	}
 	q = queues.array[index];
+	free(queues.array[index].name);
 	queue_destroy(&q);
 	
 	queues.size--;
 	Queue *temp = (Queue *)malloc(queues.size * sizeof(*queues.array));
+	printf("DELETE %d\n", (int)(queues.size * sizeof(*queues.array)));
 	memmove(
 		temp,
 		queues.array,
@@ -299,7 +300,7 @@ Request  deserialize(char serialized[])
 int process_request(const unsigned int clientfd)
 {
 	size_t request_len = 0;
-	if (recv(clientfd, &request_len, sizeof(size_t), 0) < 0)
+	if (recv(clientfd, &request_len, sizeof(size_t), MSG_WAITALL) < 0)
 	{
 		send_error(clientfd);
 		return 0;
@@ -307,7 +308,7 @@ int process_request(const unsigned int clientfd)
 
 	char request_serialized[request_len];
 
-	if (recv(clientfd, &request_serialized, request_len, 0) < 0)
+	if (recv(clientfd, &request_serialized, request_len, MSG_WAITALL) < 0)
 	{
 		send_error(clientfd);
 		return -1;
@@ -345,6 +346,7 @@ int process_request(const unsigned int clientfd)
 	char *response_serialized = 0;
 
 	response_serialized = malloc(size);
+	printf("size: %lu\n", size);
 	int i = status < 0 ? status : request.operation;
 	memcpy(response_serialized + offset, &i, sizeof(i));
 	offset += sizeof(int);

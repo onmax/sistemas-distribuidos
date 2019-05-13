@@ -342,7 +342,7 @@ bool test13()
     char *queue = (char *)randomstr(name_len);
     queue[name_len] = '\0';
 
-    size_t size = 100000;
+    size_t size = 123456;
     void *msg = randomstr(size);
     
     void *msg_get = 0;
