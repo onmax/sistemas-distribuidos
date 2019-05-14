@@ -75,7 +75,8 @@ int createMQ(const char *name)
 	{
 		if (strcmp(queues.array[i].name, name) == 0)
 		{
-			printf("There is a queue already with name \n");print_name(name);
+			printf("There is a queue already with name \n");
+			print_name(name);
 			return -1;
 		}
 	}
@@ -126,23 +127,23 @@ int destroyMQ(const char *name)
 	q = queues.array[index];
 	free(queues.array[index].name);
 	queue_destroy(&q);
-	
+
 	queues.size--;
 
 	// allocate an array with a size 1 less than the current one
-	Queue* temp = malloc(queues.size * sizeof(Queue)); 
+	Queue *temp = malloc(queues.size * sizeof(Queue));
 
 	// copy everything BEFORE the index
-    memcpy(temp, queues.array, index * sizeof(Queue)); 
-    
+	memcpy(temp, queues.array, index * sizeof(Queue));
+
 	if (index != queues.size)
 		// copy everything AFTER the index
-        memcpy(
-			temp+index, 
-			queues.array + index + 1, 
-			(queues.size - index) * sizeof(Queue)); 
+		memcpy(
+			temp + index,
+			queues.array + index + 1,
+			(queues.size - index) * sizeof(Queue));
 
-    free (queues.array);
+	free(queues.array);
 	queues.array = temp;
 	return 0;
 }
@@ -238,7 +239,8 @@ void print_everything()
 	for (int i = 0; i < queues.size; i++)
 	{
 		queue = queues.array[i];
-		printf("  %d. ", i);print_name(queue.name);
+		printf("  %d. ", i);
+		print_name(queue.name);
 		node = queue.last;
 		if (node == NULL)
 		{
@@ -271,7 +273,7 @@ int send_error(int clientfd)
 	return 0;
 }
 
-Request  deserialize(char serialized[])
+Request deserialize(char serialized[])
 {
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
 
@@ -303,9 +305,15 @@ Request  deserialize(char serialized[])
 int process_request(const unsigned int clientfd)
 {
 	size_t request_len = 0;
-	if (recv(clientfd, &request_len, sizeof(size_t), MSG_WAITALL) < 0)
+	uint32_t request_len32 = 0;
+	if (recv(clientfd, &request_len32, sizeof(size_t), MSG_WAITALL) < 0)
 	{
 		send_error(clientfd);
+		return 0;
+	}
+
+	if ((request_len = ntohl(request_len32)) < 0)
+	{
 		return 0;
 	}
 
@@ -326,23 +334,26 @@ int process_request(const unsigned int clientfd)
 	switch (request.operation)
 	{
 	case CREATE:
-		printf("Creating new queue with name: ");print_name(request.queue_name);
+		printf("Creating new queue with name: ");
+		print_name(request.queue_name);
 		status = createMQ(request.queue_name);
 		break;
 	case DESTROY:
-		printf("Destroying ");print_name(request.queue_name);
+		printf("Destroying ");
+		print_name(request.queue_name);
 		status = destroyMQ(request.queue_name);
 		break;
 	case PUT:
-		printf("Pushing new item to ");print_name(request.queue_name);
+		printf("Pushing new item to ");
+		print_name(request.queue_name);
 		status = put(request.queue_name, request.msg, request.msg_len);
 		break;
 	case GET:
-		printf("Getting item from ");print_name(request.queue_name);
+		printf("Getting item from ");
+		print_name(request.queue_name);
 		status = get(request.queue_name, &msg, &msg_len, false);
 		break;
 	}
-
 
 	size_t size = sizeof(status) + (request.operation == GET && status == 0 ? (msg_len + sizeof(msg_len)) : 0);
 	size_t offset = 0;
@@ -362,7 +373,8 @@ int process_request(const unsigned int clientfd)
 		offset += msg_len;
 	}
 
-	if (send(clientfd, &size, sizeof(size_t), 0) < 0)
+	uint32_t size_net = htonl(size);
+	if (send(clientfd, &size_net, sizeof(size_t), 0) < 0)
 	{
 		return -1;
 	}
@@ -373,7 +385,7 @@ int process_request(const unsigned int clientfd)
 	}
 	free(response_serialized);
 	msg = 0;
-	if(request.operation == PUT)
+	if (request.operation == PUT)
 	{
 		free(request.msg);
 	}

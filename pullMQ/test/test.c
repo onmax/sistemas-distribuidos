@@ -364,7 +364,6 @@ bool test13()
 int main(int argc, char *argv[])
 {
     printf("\n\nTests:\n");
-    /*
     if(!test1()) { test_error(); };
     if(!test2()) { test_error(); };
     if(!test3()) { test_error(); };
@@ -377,7 +376,6 @@ int main(int argc, char *argv[])
     if(!test10()) { test_error(); };
     if(!test11()) { test_error(); };
     if(!test12()) { test_error(); };
-    */
     if(!test13()) { test_error(); };
 
     double percentage = (tests - e) * 100 / tests;
