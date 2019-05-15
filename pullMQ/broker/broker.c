@@ -258,6 +258,7 @@ void print_everything()
 
 int send_error(int clientfd)
 {
+	// TODO htons ??
 	int i = -1;
 	size_t size = sizeof(i);
 	if (send(clientfd, &size, sizeof(size), 0) < 0)
@@ -311,7 +312,7 @@ int process_request(const unsigned int clientfd)
 		send_error(clientfd);
 		return 0;
 	}
-
+	
 	if ((request_len = ntohl(request_len32)) < 0)
 	{
 		return 0;
