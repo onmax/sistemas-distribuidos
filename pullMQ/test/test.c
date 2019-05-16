@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include "pullMQ.h"
 #include <string.h>
+#include <stdbool.h>
 
 #define r return
 #define c createMQ
@@ -20,14 +21,17 @@
 int e = 0;
 int tests = 0;
 
-void * randomstr(size_t length) {
+void *randomstr(size_t length)
+{
     //https://codereview.stackexchange.com/questions/29198/random-string-generator-in-c
-    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-#'?!";        
+    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-#'?!";
     char *random = NULL;
     random = malloc(length);
-    if (length && random) {            
-        for (int n = 0; n < length; n++) {            
-            random[n] = charset[rand() % (int)(sizeof(charset) -1)];
+    if (length && random)
+    {
+        for (int n = 0; n < length; n++)
+        {
+            random[n] = charset[rand() % (int)(sizeof(charset) - 1)];
         }
     }
     return (void *)random;
@@ -35,7 +39,7 @@ void * randomstr(size_t length) {
 
 void test_error()
 {
-    e++; 
+    e++;
     printf("Test %d failed\n", tests);
 }
 
@@ -45,7 +49,6 @@ bool panic(char *err)
     return false;
 }
 
-
 /*
 *   Test 1
 *   It will create 5 queues and destroy them in the same order
@@ -53,16 +56,46 @@ bool panic(char *err)
 bool test1()
 {
     tests++;
-    if(c("queue 1") < 0) { r panic(ERR_CREATING); }
-    if(c("q") < 0) { r panic(ERR_CREATING); }
-    if(c("q2") < 0) { r panic(ERR_CREATING); }
-    if(c("q3") < 0) { r panic(ERR_CREATING); }
-    if(c("long name for queue") < 0) { r panic(ERR_CREATING); }
-    if(d("queue 1") < 0) { r panic(ERR_DESTROYING); }
-    if(d("q") < 0) { r panic(ERR_DESTROYING); }
-    if(d("q2") < 0) { r panic(ERR_DESTROYING); }
-    if(d("q3") < 0) { r panic(ERR_DESTROYING); }
-    if(d("long name for queue") < 0) { r panic(ERR_DESTROYING); }
+    if (c("queue 1") < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c("q") < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c("q2") < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c("q3") < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c("long name for queue") < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (d("queue 1") < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d("q") < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d("q2") < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d("q3") < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d("long name for queue") < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
     return true;
 }
 
@@ -75,17 +108,35 @@ bool test2()
     tests++;
     char *queue = "queue 1";
     void *msg = "This is a normal message";
-    size_t msg_len = 24; 
+    size_t msg_len = 24;
     void *msg_get = 0;
     size_t msg_get_len = 0;
 
-    if(c(queue) < 0) { r panic(ERR_CREATING); }
-    if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
-    if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
-    if(d(queue)) { r panic(ERR_DESTROYING); }
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (p(queue, msg, msg_len) < 0)
+    {
+        r panic(ERR_PUSHING);
+    }
+    if (g(queue, &msg_get, &msg_get_len, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (d(queue))
+    {
+        r panic(ERR_DESTROYING);
+    }
 
-    if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
-    if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+    if (memcmp(msg_get, msg, msg_len) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (msg_len != msg_get_len)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
 
     free(msg_get);
     return true;
@@ -100,11 +151,26 @@ bool test3()
 {
     tests++;
     char *queue = "queue";
-    if(c(queue) < 0) { r panic(ERR_CREATING); }
-    if(c(queue) == 0) { r panic(ERR_CREATING); }
-    if(d(queue) < 0) { r panic(ERR_DESTROYING); }
-    if(c(queue) < 0) { r panic(ERR_CREATING); }
-    if(d(queue) < 0) { r panic(ERR_DESTROYING); }
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue) == 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (d(queue) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (d(queue) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
     return true;
 }
 
@@ -115,7 +181,10 @@ bool test3()
 bool test4()
 {
     tests++;
-    if(d("queue") >= 0) { r panic(ERR_QUEUE_NOT_EXIST); }
+    if (d("queue") >= 0)
+    {
+        r panic(ERR_QUEUE_NOT_EXIST);
+    }
     return true;
 }
 
@@ -128,7 +197,10 @@ bool test5()
     tests++;
     void *msg = "message";
     size_t size = 7;
-    if(p("queue", msg, size) >= 0) { r panic(ERR_QUEUE_NOT_EXIST); }
+    if (p("queue", msg, size) >= 0)
+    {
+        r panic(ERR_QUEUE_NOT_EXIST);
+    }
     return true;
 }
 
@@ -141,7 +213,10 @@ bool test6()
     tests++;
     void *msg = 0;
     size_t size = 0;
-    if(g("queue", &msg, &size, false) >= 0) { r panic(ERR_QUEUE_NOT_EXIST); }
+    if (g("queue", &msg, &size, false) >= 0)
+    {
+        r panic(ERR_QUEUE_NOT_EXIST);
+    }
     return true;
 }
 
@@ -154,18 +229,36 @@ bool test7()
     tests++;
     size_t size = 10000;
     void *msg = randomstr(size);
-    
+
     void *msg_get = 0;
     size_t get_msg_len = 0;
-    
-    if(c("a very long long name") < 0) { r panic(ERR_CREATING); }
-    if(p("a very long long name", msg, size) < 0) { r panic(ERR_PUSHING); }
-    if(g("a very long long name", &msg_get, &get_msg_len, false) < 0) { r panic(ERR_GETTING); }
-    if(d("a very long long name") < 0) { r panic(ERR_DESTROYING); }
 
-    if(memcmp(msg_get, msg, size) != 0) { r panic(MSGS_NOT_EQUAL); }
-    if(size != get_msg_len) { r panic(MSGS_LEN_NOT_EQUAL); }
-    
+    if (c("a very long long name") < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (p("a very long long name", msg, size) < 0)
+    {
+        r panic(ERR_PUSHING);
+    }
+    if (g("a very long long name", &msg_get, &get_msg_len, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (d("a very long long name") < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+
+    if (memcmp(msg_get, msg, size) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (size != get_msg_len)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
+
     free(msg);
     free(msg_get);
     return true;
@@ -184,16 +277,40 @@ bool test8()
     char *queue3 = "queue with name long, seriously, really long";
     char *queue4 = "ok, i am a queue";
 
-    if(c(queue1) < 0) { r panic(ERR_CREATING); }
-    if(c(queue2) < 0) { r panic(ERR_CREATING); }
-    if(c(queue3) < 0) { r panic(ERR_CREATING); }
-    if(c(queue4) < 0) { r panic(ERR_CREATING); }
+    if (c(queue1) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue2) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue3) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue4) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
 
-    if(d(queue4) < 0) { r panic(ERR_DESTROYING); }
-    if(d(queue2) < 0) { r panic(ERR_DESTROYING); }
-    if(d(queue3) < 0) { r panic(ERR_DESTROYING); }
-    if(d(queue1) < 0) { r panic(ERR_DESTROYING); }
-    
+    if (d(queue4) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d(queue2) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d(queue3) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d(queue1) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+
     return true;
 }
 
@@ -218,26 +335,74 @@ bool test9()
     void *get_msg1, *get_msg2;
     size_t get_msg_len1, get_msg_len2 = 0;
 
-    if(c(queue1) < 0) { r panic(ERR_CREATING); }
-    if(c(queue2) < 0) { r panic(ERR_CREATING); }
-    if(c(queue3) < 0) { r panic(ERR_CREATING); }
-    if(c(queue4) < 0) { r panic(ERR_CREATING); }
+    if (c(queue1) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue2) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue3) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue4) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
 
-    if(p(queue3, msg1, msg_len1) < 0) { r panic(ERR_PUSHING); }
-    if(p(queue2, msg2, msg_len2) < 0) { r panic(ERR_PUSHING); }
+    if (p(queue3, msg1, msg_len1) < 0)
+    {
+        r panic(ERR_PUSHING);
+    }
+    if (p(queue2, msg2, msg_len2) < 0)
+    {
+        r panic(ERR_PUSHING);
+    }
 
-    if(g(queue3, &get_msg1, &get_msg_len1, false) < 0) { r panic(ERR_GETTING); }
-    if(memcmp(msg1, get_msg1, msg_len1) != 0) { r panic(MSGS_NOT_EQUAL); }
-    if(get_msg_len1 != msg_len1) { r panic(MSGS_LEN_NOT_EQUAL); }
+    if (g(queue3, &get_msg1, &get_msg_len1, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (memcmp(msg1, get_msg1, msg_len1) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (get_msg_len1 != msg_len1)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
 
-    if(g(queue2, &get_msg2, &get_msg_len2, false) < 0) { r panic(ERR_GETTING); }
-    if(memcmp(get_msg2, msg2, msg_len2) != 0) { r panic(MSGS_NOT_EQUAL); }
-    if(get_msg_len2 != msg_len2) { r panic(MSGS_LEN_NOT_EQUAL); }
-   
-    if(d(queue1) < 0) { r panic(ERR_DESTROYING); }
-    if(d(queue2) < 0) { r panic(ERR_DESTROYING); }
-    if(d(queue3) < 0) { r panic(ERR_DESTROYING); }
-    if(d(queue4) < 0) { r panic(ERR_DESTROYING); }
+    if (g(queue2, &get_msg2, &get_msg_len2, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (memcmp(get_msg2, msg2, msg_len2) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (get_msg_len2 != msg_len2)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
+
+    if (d(queue1) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d(queue2) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d(queue3) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (d(queue4) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
 
     free(msg1);
     free(msg2);
@@ -255,20 +420,38 @@ bool test10()
     tests++;
     char *queue = "queue 1";
     void *msg = "This is a normal message";
-    size_t msg_len = 24; 
+    size_t msg_len = 24;
     void *msg_get = 0;
     size_t msg_get_len = 0;
 
-    for(int i=0; i < 10; i++)
+    for (int i = 0; i < 10; i++)
     {
-        if(c(queue) < 0) { r panic(ERR_CREATING); }
-        if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
-        if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
-        if(d(queue)) { r panic(ERR_DESTROYING); }
+        if (c(queue) < 0)
+        {
+            r panic(ERR_CREATING);
+        }
+        if (p(queue, msg, msg_len) < 0)
+        {
+            r panic(ERR_PUSHING);
+        }
+        if (g(queue, &msg_get, &msg_get_len, false) < 0)
+        {
+            r panic(ERR_GETTING);
+        }
+        if (d(queue))
+        {
+            r panic(ERR_DESTROYING);
+        }
 
-        if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
-        if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
-        
+        if (memcmp(msg_get, msg, msg_len) != 0)
+        {
+            r panic(MSGS_NOT_EQUAL);
+        }
+        if (msg_len != msg_get_len)
+        {
+            r panic(MSGS_LEN_NOT_EQUAL);
+        }
+
         free(msg_get);
     }
     return true;
@@ -283,26 +466,43 @@ bool test11()
     tests++;
     char *queue = "queue 1";
     void *msg = "This is a normal message";
-    size_t msg_len = 24; 
+    size_t msg_len = 24;
     void *msg_get = 0;
     size_t msg_get_len = 0;
 
-    if(c(queue) < 0) { r panic(ERR_CREATING); }
-    for(int i=0; i < 10; i++)
+    if (c(queue) < 0)
     {
-        if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
-        if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
+        r panic(ERR_CREATING);
+    }
+    for (int i = 0; i < 10; i++)
+    {
+        if (p(queue, msg, msg_len) < 0)
+        {
+            r panic(ERR_PUSHING);
+        }
+        if (g(queue, &msg_get, &msg_get_len, false) < 0)
+        {
+            r panic(ERR_GETTING);
+        }
 
-        if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
-        if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+        if (memcmp(msg_get, msg, msg_len) != 0)
+        {
+            r panic(MSGS_NOT_EQUAL);
+        }
+        if (msg_len != msg_get_len)
+        {
+            r panic(MSGS_LEN_NOT_EQUAL);
+        }
 
         free(msg_get);
     }
-    if(d(queue)) { r panic(ERR_DESTROYING); }
+    if (d(queue))
+    {
+        r panic(ERR_DESTROYING);
+    }
 
     return true;
 }
-
 
 /**
  * Test 12
@@ -315,21 +515,38 @@ bool test12()
     char *queue = (char *)randomstr(name_len);
     queue[name_len] = '\0';
     void *msg = "This is a normal message";
-    size_t msg_len = 24; 
+    size_t msg_len = 24;
     void *msg_get = 0;
     size_t msg_get_len = 0;
 
-    if(c(queue) < 0) { r panic(ERR_CREATING); }
-    if(p(queue, msg, msg_len) < 0) { r panic(ERR_PUSHING); }
-    if(g(queue, &msg_get, &msg_get_len, false) < 0) { r panic(ERR_GETTING); }
-    if(d(queue)) { r panic(ERR_DESTROYING); }
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (p(queue, msg, msg_len) < 0)
+    {
+        r panic(ERR_PUSHING);
+    }
+    if (g(queue, &msg_get, &msg_get_len, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (d(queue))
+    {
+        r panic(ERR_DESTROYING);
+    }
 
-    if(memcmp(msg_get, msg, msg_len) != 0) { r panic(MSGS_NOT_EQUAL); }
-    if(msg_len != msg_get_len) { r panic(MSGS_LEN_NOT_EQUAL); }
+    if (memcmp(msg_get, msg, msg_len) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (msg_len != msg_get_len)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
 
     return true;
 }
-
 
 /**
  * Test 13
@@ -342,21 +559,94 @@ bool test13()
     char *queue = (char *)randomstr(name_len);
     queue[name_len] = '\0';
 
-    size_t size = 200000;
+    size_t size = 2000000;
     void *msg = randomstr(size);
-    
+
     void *msg_get = 0;
     size_t get_msg_len = 0;
-    
-    if(c(queue) < 0) { r panic(ERR_CREATING); }
-    if(p(queue, msg, size) < 0) { r panic(ERR_PUSHING); }
-    if(g(queue, &msg_get, &get_msg_len, false) < 0) { r panic(ERR_GETTING); }
-    if(d(queue) < 0) { r panic(ERR_DESTROYING); }
 
-    if(memcmp(msg_get, msg, size) != 0) { r panic(MSGS_NOT_EQUAL); }
-    if(size != get_msg_len) { r panic(MSGS_LEN_NOT_EQUAL); }
-    
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (p(queue, msg, size) < 0)
+    {
+        r panic(ERR_PUSHING);
+    }
+    if (g(queue, &msg_get, &get_msg_len, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (d(queue) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+
+    if (memcmp(msg_get, msg, size) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (size != get_msg_len)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
+
     free(msg);
+    free(msg_get);
+    return true;
+}
+
+/*
+ * Test 15
+ * It will create a queue, push a element and get the element back.
+ * This will be blocking. Instead of using two clients, we are using fork()
+ */
+bool test15()
+{
+    tests++;
+    char *queue = "queue 1";
+    void *msg = "This is a normal message";
+    size_t msg_len = 24;
+    void *msg_get = 0;
+    size_t msg_get_len = 0;
+
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    switch (fork())
+    {
+    case 0:
+        sleep(5);
+        if (p(queue, msg, msg_len) < 0)
+        {
+            r panic(ERR_PUSHING);
+        }
+        exit(0);
+        break;
+
+    default:
+        if (g(queue, &msg_get, &msg_get_len, true) < 0)
+        {
+            r panic(ERR_GETTING);
+        }
+        break;
+    }
+
+    if (d(queue))
+    {
+        r panic(ERR_DESTROYING);
+    }
+
+    if (memcmp(msg_get, msg, msg_len) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (msg_len != msg_get_len)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
+
     free(msg_get);
     return true;
 }
@@ -364,19 +654,64 @@ bool test13()
 int main(int argc, char *argv[])
 {
     printf("\n\nTests:\n");
-    if(!test1()) { test_error(); };
-    if(!test2()) { test_error(); };
-    if(!test3()) { test_error(); };
-    if(!test4()) { test_error(); };
-    if(!test5()) { test_error(); };
-    if(!test6()) { test_error(); };
-    if(!test7()) { test_error(); };
-    if(!test8()) { test_error(); };
-    if(!test9()) { test_error(); };
-    if(!test10()) { test_error(); };
-    if(!test11()) { test_error(); };
-    if(!test12()) { test_error(); };
-    if(!test13()) { test_error(); };
+    /*
+    if (!test1())
+    {
+        test_error();
+    };
+    if (!test2())
+    {
+        test_error();
+    };
+    if (!test3())
+    {
+        test_error();
+    };
+    if (!test4())
+    {
+        test_error();
+    };
+    if (!test5())
+    {
+        test_error();
+    };
+    if (!test6())
+    {
+        test_error();
+    };
+    if (!test7())
+    {
+        test_error();
+    };
+    if (!test8())
+    {
+        test_error();
+    };
+    if (!test9())
+    {
+        test_error();
+    };
+    if (!test10())
+    {
+        test_error();
+    };
+    if (!test11())
+    {
+        test_error();
+    };
+    if (!test12())
+    {
+        test_error();
+    };
+    if (!test13())
+    {
+        test_error();
+    };
+    */
+    if (!test15())
+    {
+        test_error();
+    };
 
     double percentage = (tests - e) * 100 / tests;
     printf("%.2f %% tests passed\nRemember to check server side\n", percentage);

@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "comun.h"
-#include "../libpullMQ/pullMQ.h"
 
 #include <errno.h>
 #include <sys/socket.h>
@@ -13,7 +12,50 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-#define MAXBUF 1024
+typedef struct
+{
+	int operation;
+	size_t queue_name_len;
+	char *queue_name;
+	size_t msg_len;
+	void *msg;
+	char blocking; // It a char to save memory. Char is 1B, instead of bool which is 4B
+} Request;
+
+struct Node
+{
+	size_t size;
+	void *msg;
+	struct Node *next;
+};
+
+typedef struct
+{
+	char *name;
+	struct Node *first;
+	struct Node *last;
+	int *awaiting;
+	int n_awaiting;
+} Queue;
+
+typedef struct
+{
+	Queue *array;
+	int size;
+} Queues;
+
+int queue_create(Queue *q, const char *name);
+int createMQ(const char *name);
+int queue_destroy(Queue *q);
+int destroyMQ(const char *name);
+int queue_push(Queue *q, const void *msg, size_t tam);
+int put(const char *name, const void *msg, size_t size);
+int queue_pop(Queue *q, void **msg, size_t *tam, bool blocking, int client_fd);
+int get(const char *name, void **msg, size_t *tam, bool blocking, int client_fd);
+int queue_search_node(Queue *q, struct Node *node, struct Node **result);
+void print_name(const char *name);
+void print_message(const void *message, size_t size);
+void print_everything();
 
 Queues queues;
 bool initialized = false;
@@ -57,6 +99,8 @@ int queue_create(Queue *q, const char *name)
 	strcpy(temp->name, name);
 	temp->first = NULL;
 	temp->last = NULL;
+	temp->awaiting = malloc(0);
+	temp->n_awaiting = 0;
 	*q = *temp;
 	return 0;
 }
@@ -117,7 +161,7 @@ int queue_destroy(Queue *q)
 
 int destroyMQ(const char *name)
 {
-	// Obtenemos la cola, devuleve -1 en caso de que no exista
+	// Obtenemos la cola, devuelve -1 en caso de que no exista
 	Queue q;
 	int index = -1;
 	if ((index = get_index(name)) < 0)
@@ -148,6 +192,50 @@ int destroyMQ(const char *name)
 	return 0;
 }
 
+int awaiting_arr_pop(Queue *q, const void *msg, size_t size)
+{
+	int client_fd = q->awaiting[0];
+	q->n_awaiting--;
+	int *temp = malloc(q->n_awaiting * sizeof(int));
+
+	memcpy(
+		temp,
+		q->awaiting + 1,
+		q->n_awaiting * sizeof(int));
+
+	free(q->awaiting);
+	q->awaiting = temp;
+
+	size_t serialized_size = GET + size + sizeof(size);
+	size_t offset = 0;
+	char *response_serialized = 0;
+
+	response_serialized = malloc(serialized_size);
+	int operation = GET;
+
+	memcpy(response_serialized + offset, &operation, sizeof(operation));
+	offset += sizeof(int);
+
+	memcpy(response_serialized + offset, &size, sizeof(size));
+	offset += sizeof(size);
+
+	memcpy(response_serialized + offset, msg, size);
+	offset += size;
+
+	uint32_t size_net = htonl(serialized_size);
+	if (send(client_fd, &size_net, sizeof(size_t), 0) < 0)
+	{
+		return -1;
+	}
+
+	if (send(client_fd, response_serialized, serialized_size, 0) < 0)
+	{
+		return -1;
+	}
+
+	return 0;
+}
+
 int queue_push(Queue *q, const void *msg, size_t size)
 {
 	struct Node *node;
@@ -158,6 +246,11 @@ int queue_push(Queue *q, const void *msg, size_t size)
 
 	if (q->first == NULL)
 	{
+		if (q->n_awaiting > 0)
+		{
+			awaiting_arr_pop(q, msg, size);
+			return 0;
+		}
 		node->next = NULL;
 		q->first = node;
 	}
@@ -171,7 +264,7 @@ int queue_push(Queue *q, const void *msg, size_t size)
 
 int put(const char *name, const void *msg, size_t size)
 {
-	// Obtenemos la cola, devuleve -1 en caso de que no exista
+	// Obtenemos la cola, devueleve -1 en caso de que no exista
 	Queue q;
 	int index;
 	if ((index = get_index(name)) < 0)
@@ -187,15 +280,31 @@ int put(const char *name, const void *msg, size_t size)
 	return 0;
 }
 
-int queue_pop(Queue *q, void **msg, size_t *tam)
+int awaiting_arr_push(Queue *q, int client_socket)
+{
+	q->n_awaiting++;
+	q->awaiting = (int *)realloc(q->awaiting, q->n_awaiting * sizeof(int));
+	q->awaiting[q->n_awaiting - 1] = client_socket;
+	return 0;
+}
+
+int queue_pop(Queue *q, void **msg, size_t *tam, bool blocking, int client_fd)
 {
 	if (q->first == NULL)
 	{
-		return -1;
+		if (blocking)
+		{
+			awaiting_arr_push(q, client_fd);
+			return 1;
+		}
+		else
+		{
+			return -1;
+		}
 	}
 	struct Node *first = q->first;
 
-	*msg = (void *)first->msg;
+	*msg = first->msg;
 	*tam = first->size;
 
 	struct Node *second;
@@ -212,20 +321,26 @@ int queue_pop(Queue *q, void **msg, size_t *tam)
 	return 0;
 }
 
-int get(const char *name, void **msg, size_t *tam, bool blocking)
+int get(const char *queue_name, void **msg, size_t *size, bool blocking, int client_fd)
 {
-	// Obtenemos la cola, devuleve -1 en caso de que no exista
+	// Obtenemos la cola, devuelve -1 en caso de que no exista
 	Queue q;
 	int index;
 
-	if ((index = get_index(name)) < 0)
+	if ((index = get_index(queue_name)) < 0)
 	{
 		return -1;
 	}
 	q = queues.array[index];
-	if (queue_pop(&q, msg, tam) < 0)
+	int status;
+	if ((status = queue_pop(&q, msg, size, blocking, client_fd)) != 0)
 	{
-		return -1;
+		if (status == 1)
+		{
+			queues.array[index] = q;
+		}
+
+		return status;
 	}
 	queues.array[index] = q;
 	return 0;
@@ -241,6 +356,12 @@ void print_everything()
 		queue = queues.array[i];
 		printf("  %d. ", i);
 		print_name(queue.name);
+		printf("sockets awaiting: [");
+		for (int j = 0; j < queue.n_awaiting; j++)
+		{
+			printf("%d, ", queue.awaiting[j]);
+		}
+		printf("]\n");
 		node = queue.last;
 		if (node == NULL)
 		{
@@ -258,6 +379,7 @@ void print_everything()
 
 int send_error(int clientfd)
 {
+	printf("Sending error\n");
 	// TODO htons ??
 	int i = -1;
 	size_t size = sizeof(i);
@@ -270,7 +392,7 @@ int send_error(int clientfd)
 	{
 		return -1;
 	}
-
+	printf("Error sended\n");
 	return 0;
 }
 
@@ -300,6 +422,11 @@ Request deserialize(char serialized[])
 		request.msg = malloc(request.msg_len);
 		memcpy(request.msg, msg, request.msg_len);
 	}
+	else if (request.operation == GET)
+	{
+		char *blocking = queue_name + request.queue_name_len;
+		request.blocking = *((char *)blocking);
+	}
 	return request;
 }
 
@@ -312,15 +439,19 @@ int process_request(const unsigned int clientfd)
 		send_error(clientfd);
 		return 0;
 	}
-	
 	if ((request_len = ntohl(request_len32)) < 0)
 	{
 		return 0;
 	}
 
-	char request_serialized[request_len];
+	char *request_serialized = malloc(request_len);
+	if (request_serialized == NULL)
+	{
+		send_error(clientfd);
+		return -1;
+	}
 
-	if (recv(clientfd, &request_serialized, request_len, MSG_WAITALL) < 0)
+	if (recv(clientfd, request_serialized, request_len, MSG_WAITALL) < 0)
 	{
 		send_error(clientfd);
 		return -1;
@@ -331,7 +462,6 @@ int process_request(const unsigned int clientfd)
 	void *msg;
 	size_t msg_len = 0;
 	int status;
-
 	switch (request.operation)
 	{
 	case CREATE:
@@ -352,10 +482,15 @@ int process_request(const unsigned int clientfd)
 	case GET:
 		printf("Getting item from ");
 		print_name(request.queue_name);
-		status = get(request.queue_name, &msg, &msg_len, false);
+		status = get(request.queue_name, &msg, &msg_len, request.blocking, clientfd);
 		break;
 	}
 
+	if (status == 1)
+	{
+		return 1;
+	}
+	free(request_serialized);
 	size_t size = sizeof(status) + (request.operation == GET && status == 0 ? (msg_len + sizeof(msg_len)) : 0);
 	size_t offset = 0;
 	char *response_serialized = 0;
@@ -390,7 +525,7 @@ int process_request(const unsigned int clientfd)
 	{
 		free(request.msg);
 	}
-	return -1;
+	return 0;
 }
 
 int create_server(int port)
@@ -436,10 +571,13 @@ int create_server(int port)
 		clientfd = accept(sockfd, (struct sockaddr *)&client_addr, &addrlen);
 		printf("\n-----------------------------------------------\n");
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-		process_request(clientfd);
+		int status = process_request(clientfd);
 		print_everything();
 		printf("-----------------------------------------------\n");
-		close(clientfd);
+		if (status != 1)
+		{
+			close(clientfd);
+		}
 	}
 	close(sockfd);
 }
