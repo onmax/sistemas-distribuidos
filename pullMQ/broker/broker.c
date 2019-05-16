@@ -17,6 +17,33 @@
 
 Queues queues;
 bool initialized = false;
+void print_name(const char *name)
+{
+    if(strlen(name) >= 30){
+        char res[50];
+        strncpy(res, name, 30);
+        printf("%s...(%lu): \n", res, strlen(name));
+    }
+    else
+    {
+        printf("%s(%lu)\n", name, strlen(name));
+    }
+}
+
+void print_message(const void *message, size_t size)
+{
+    if(size >= 30){
+        void *res;
+        res = malloc(50);
+        memcpy(res, message, 30);
+        printf("\t%s...(%lu)\n", (char *)res, size);
+        free(res);
+    }
+    else
+    {
+        printf("\t%s(%lu)\n", (char *)message, size);
+    }
+}
 
 int get_index(const char *name)
 {
@@ -307,12 +334,12 @@ int process_request(const unsigned int clientfd)
 {
 	size_t request_len = 0;
 	uint32_t request_len32 = 0;
-	if (recv(clientfd, &request_len32, sizeof(size_t), MSG_WAITALL) < 0)
+	if (recv(clientfd, &request_len32, sizeof(size_t), 0) < 0)
 	{
 		send_error(clientfd);
 		return 0;
 	}
-	
+
 	if ((request_len = ntohl(request_len32)) < 0)
 	{
 		return 0;
@@ -320,14 +347,13 @@ int process_request(const unsigned int clientfd)
 
 	char request_serialized[request_len];
 
-	if (recv(clientfd, &request_serialized, request_len, MSG_WAITALL) < 0)
+	if (recv(clientfd, &request_serialized, request_len, 0) < 0)
 	{
 		send_error(clientfd);
 		return -1;
 	}
 
 	Request request = deserialize(request_serialized);
-
 	void *msg;
 	size_t msg_len = 0;
 	int status;
@@ -384,6 +410,7 @@ int process_request(const unsigned int clientfd)
 	{
 		return -1;
 	}
+	free(request.queue_name);
 	free(response_serialized);
 	msg = 0;
 	if (request.operation == PUT)
