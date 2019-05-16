@@ -54,10 +54,10 @@ int get_connected_socket()
 	return socket_fd;
 }
 
-//mayve operation type short?
+//TODO operation type short?
 int send_request(const unsigned int operation, const char *queue_name,
 				 const void *put_msg, size_t put_msg_len,
-				 void **get_msg, size_t *get_msg_len)
+				 void **get_msg, size_t *get_msg_len, bool blocking)
 {
 	int socket_fd;
 	char *serialized = 0;
@@ -65,9 +65,9 @@ int send_request(const unsigned int operation, const char *queue_name,
 	{
 		return -1;
 	}
-
 	size_t size = sizeof(operation) +
-				  strlen(queue_name) + sizeof(strlen(queue_name)) + (operation == PUT ? put_msg_len + sizeof(put_msg_len) : 0);
+				  strlen(queue_name) + sizeof(strlen(queue_name)) + (operation == PUT ? put_msg_len + sizeof(put_msg_len) : 0) +
+				  (operation == GET ? sizeof(char) : 0);
 	// Serialization
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
 	size_t offset = 0;
@@ -83,7 +83,6 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 	memcpy(serialized + offset, queue_name, strlen(queue_name));
 	offset += strlen(queue_name);
-
 	if (operation == PUT)
 	{
 		memcpy(serialized + offset, &put_msg_len, sizeof(put_msg));
@@ -92,8 +91,16 @@ int send_request(const unsigned int operation, const char *queue_name,
 		memcpy(serialized + offset, put_msg, put_msg_len);
 		offset += put_msg_len;
 	}
+	else if (operation == GET)
+	{
+		char bit = (blocking ? '1' : '0');
+		memcpy(serialized + offset, &bit, sizeof(char));
+
+		offset += sizeof(char);
+	}
 
 	uint32_t size_net = htonl(size);
+
 	if (send(socket_fd, &size_net, sizeof(size_t), 0) < 0)
 	{
 		return -1;
@@ -115,8 +122,8 @@ int send_request(const unsigned int operation, const char *queue_name,
 		return 0;
 	}
 
-	char reply[reply_len];
-	if (recv(socket_fd, &reply, reply_len, MSG_WAITALL) < 0)
+	char *reply = malloc(reply_len);
+	if (recv(socket_fd, reply, reply_len, MSG_WAITALL) < 0)
 	{
 		return -1;
 	}
@@ -126,6 +133,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 	int status = *((int *)reply);
 	if (status != operation)
 	{
+		free(reply);
 		return -1;
 	}
 
@@ -140,26 +148,26 @@ int send_request(const unsigned int operation, const char *queue_name,
 		*get_msg = malloc(*get_msg_len);
 		memcpy(*get_msg, msg, *get_msg_len);
 	}
-
+	free(reply);
 	return 0;
 }
 
 int createMQ(const char *queue_name)
 {
-	return send_request(CREATE, queue_name, NULL, 0, NULL, 0);
+	return send_request(CREATE, queue_name, NULL, 0, NULL, 0, false);
 }
 
 int destroyMQ(const char *queue_name)
 {
-	return send_request(DESTROY, queue_name, NULL, 0, NULL, 0);
+	return send_request(DESTROY, queue_name, NULL, 0, NULL, 0, false);
 }
 
 int put(const char *queue_name, const void *msg, size_t size)
 {
-	return send_request(PUT, queue_name, msg, size, NULL, 0);
+	return send_request(PUT, queue_name, msg, size, NULL, 0, false);
 }
 
 int get(const char *queue_name, void **msg, size_t *size, bool blocking)
 {
-	return send_request(GET, queue_name, NULL, 0, msg, size);
+	return send_request(GET, queue_name, NULL, 0, msg, size, blocking);
 }
