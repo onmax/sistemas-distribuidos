@@ -559,7 +559,7 @@ bool test13()
     char *queue = (char *)randomstr(name_len);
     queue[name_len] = '\0';
 
-    size_t size = 2000000;
+    size_t size = 20000000;
     void *msg = randomstr(size);
 
     void *msg_get = 0;
@@ -637,7 +637,6 @@ bool test15()
     {
         r panic(ERR_DESTROYING);
     }
-
     if (memcmp(msg_get, msg, msg_len) != 0)
     {
         r panic(MSGS_NOT_EQUAL);
@@ -651,10 +650,83 @@ bool test15()
     return true;
 }
 
+/*
+ * Test 16
+ * It will create a queue, push 2 elements and  get the elements back.
+ * This will be blocking. Instead of using two clients, we are using fork()
+ */
+bool test16()
+{
+    tests++;
+    char *queue = "queue 1";
+    void *msg = "This is a normal message";
+    void *msg2 = "Thiss my second message";
+    size_t msg_len = 24;
+    void *msg_get = 0;
+    void *msg_get2 = 0;
+    size_t msg_get_len = 0;
+    size_t msg_get_len2 = 0;
+
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    switch (fork())
+    {
+    case 0:
+        sleep(5);
+        if (p(queue, msg, msg_len) < 0)
+        {
+            r panic(ERR_PUSHING);
+        }
+        sleep(5);
+        if (p(queue, msg2, msg_len) < 0)
+        {
+            r panic(ERR_PUSHING);
+        }
+        exit(0);
+        break;
+
+    default:
+        if (g(queue, &msg_get, &msg_get_len, true) < 0)
+        {
+            r panic(ERR_GETTING);
+        }
+        if (g(queue, &msg_get2, &msg_get_len2, true) < 0)
+        {
+            r panic(ERR_GETTING);
+        }
+        break;
+    }
+
+    if (d(queue))
+    {
+        r panic(ERR_DESTROYING);
+    }
+    if (memcmp(msg_get, msg, msg_len) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (msg_len != msg_get_len)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
+    if (memcmp(msg_get2, msg2, msg_len) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (msg_get_len2 != msg_len)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
+
+    free(msg_get);
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     printf("\n\nTests:\n");
-    /*
     if (!test1())
     {
         test_error();
@@ -707,8 +779,11 @@ int main(int argc, char *argv[])
     {
         test_error();
     };
-    */
     if (!test15())
+    {
+        test_error();
+    };
+    if (!test16())
     {
         test_error();
     };
