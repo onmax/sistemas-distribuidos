@@ -555,7 +555,7 @@ bool test12()
 bool test13()
 {
     tests++;
-    size_t name_len = 10000000;
+    size_t name_len = 10000;
     char *queue = (char *)randomstr(name_len);
     queue[name_len] = '\0';
 
@@ -593,6 +593,94 @@ bool test13()
 
     free(msg);
     free(msg_get);
+    return true;
+}
+
+/**
+ * Test 14
+ * It will create 100 queues with 100 message each of 10 chars. Get some of them and destroy them
+ */
+bool test14()
+{
+    tests++;
+    int nqueues = 100;
+    for (int i = 0; i < nqueues; i++)
+    {
+        char queue[3];
+        sprintf(queue, "q%d", i);
+        if (c(queue) < 0)
+        {
+            r panic(ERR_CREATING);
+        }
+    }
+
+    void *msg_to_check = "HOLAHOLAHO";
+    size_t msg_len_to_check = 10;
+    for (int i = 99; i >= 0; i--)
+    {
+        char queue[3];
+        sprintf(queue, "q%d", i);
+        for (int j = 0; j < 10; j++)
+        {
+            void *msg = randomstr(10);
+            if (i == 77 && j == 0)
+            {
+                if (p(queue, msg_to_check, 10) < 0)
+                {
+                    r panic(ERR_CREATING);
+                }
+            }
+            else
+            {
+                if (p(queue, msg, 10) < 0)
+                {
+                    r panic(ERR_CREATING);
+                }
+            }
+            free(msg);
+        }
+    }
+
+    for (int i = 50; i >= 25; i--)
+    {
+        char queue[3];
+        sprintf(queue, "q%d", i);
+        for (int j = 0; j < 10; j++)
+        {
+            void *msg = 0;
+            size_t msg_len = 0;
+            if (g(queue, &msg, &msg_len, false) < 0)
+            {
+                r panic(ERR_GETTING);
+            }
+            free(msg);
+        }
+    }
+
+    void *msg2 = 0;
+    size_t msg_len2 = 0;
+    if (g("q77", &msg2, &msg_len2, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (memcmp(msg2, msg_to_check, 10) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (msg_len2 != msg_len_to_check)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
+    free(msg2);
+    for (int i = 0; i < nqueues; i++)
+    {
+        char queue[3];
+        sprintf(queue, "q%d", i);
+        if (d(queue) < 0)
+        {
+            r panic(ERR_DESTROYING);
+        }
+    }
     return true;
 }
 
@@ -724,9 +812,43 @@ bool test16()
     return true;
 }
 
+/*
+* Test 17
+* It will try to create with a long name two queues with the same long name
+* Then it will be removed and added again
+*/
+bool test17()
+{
+    tests++;
+    size_t queue_len = 1000;
+    char *queue = (char *)randomstr(queue_len);
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue) == 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (d(queue) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    } 
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (d(queue) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     printf("\n\nTests:\n");
+    /*
     if (!test1())
     {
         test_error();
@@ -779,11 +901,19 @@ int main(int argc, char *argv[])
     {
         test_error();
     };
+    if (!test14())
+    {
+        test_error();
+    };
     if (!test15())
     {
         test_error();
     };
     if (!test16())
+    {
+        test_error();
+    };*/
+    if (!test17())
     {
         test_error();
     };
