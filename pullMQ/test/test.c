@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "pullMQ.h"
-<<<<<<< HEAD
-=======
 #include <string.h>
 #include <stdbool.h>
 
@@ -606,58 +604,82 @@ bool test14()
 {
     tests++;
     int nqueues = 100;
-    for(int i = 0; i < nqueues; i++)
+    for (int i = 0; i < nqueues; i++)
     {
         char queue[3];
         sprintf(queue, "q%d", i);
-        if(c(queue) < 0) { r panic(ERR_CREATING); }
+        if (c(queue) < 0)
+        {
+            r panic(ERR_CREATING);
+        }
     }
 
     void *msg_to_check = "HOLAHOLAHO";
     size_t msg_len_to_check = 10;
-    for(int i = 99; i >= 0; i--)
+    for (int i = 99; i >= 0; i--)
     {
-        char queue[3];        
+        char queue[3];
         sprintf(queue, "q%d", i);
-        for(int j = 0; j < 10; j++)
+        for (int j = 0; j < 10; j++)
         {
             void *msg = randomstr(10);
-            if(i == 77 && j == 0)
+            if (i == 77 && j == 0)
             {
-                if(p(queue, msg_to_check, 10) < 0) { r panic(ERR_CREATING); }
+                if (p(queue, msg_to_check, 10) < 0)
+                {
+                    r panic(ERR_CREATING);
+                }
             }
             else
             {
-                if(p(queue, msg, 10) < 0) { r panic(ERR_CREATING); }
+                if (p(queue, msg, 10) < 0)
+                {
+                    r panic(ERR_CREATING);
+                }
             }
             free(msg);
         }
     }
 
-    for(int i = 50; i >= 25; i--)
+    for (int i = 50; i >= 25; i--)
     {
-        char queue[3];        
+        char queue[3];
         sprintf(queue, "q%d", i);
-        for(int j = 0; j < 10; j++)
+        for (int j = 0; j < 10; j++)
         {
             void *msg = 0;
             size_t msg_len = 0;
-            if(g(queue, &msg, &msg_len, false) < 0) { r panic(ERR_GETTING); }
+            if (g(queue, &msg, &msg_len, false) < 0)
+            {
+                r panic(ERR_GETTING);
+            }
             free(msg);
         }
     }
 
     void *msg2 = 0;
     size_t msg_len2 = 0;
-    if(g("q77", &msg2, &msg_len2, false) < 0) { r panic(ERR_GETTING); }
-    if(memcmp(msg2, msg_to_check, 10) != 0) { r panic(MSGS_NOT_EQUAL); }
-    if(msg_len2 != msg_len_to_check) { r panic(MSGS_LEN_NOT_EQUAL); }
+    if (g("q77", &msg2, &msg_len2, false) < 0)
+    {
+        r panic(ERR_GETTING);
+    }
+    if (memcmp(msg2, msg_to_check, 10) != 0)
+    {
+        r panic(MSGS_NOT_EQUAL);
+    }
+    if (msg_len2 != msg_len_to_check)
+    {
+        r panic(MSGS_LEN_NOT_EQUAL);
+    }
     free(msg2);
-    for(int i = 0; i < nqueues; i++)
+    for (int i = 0; i < nqueues; i++)
     {
         char queue[3];
         sprintf(queue, "q%d", i);
-        if(d(queue) < 0) { r panic(ERR_DESTROYING); }
+        if (d(queue) < 0)
+        {
+            r panic(ERR_DESTROYING);
+        }
     }
     return true;
 }
@@ -789,77 +811,47 @@ bool test16()
     free(msg_get);
     return true;
 }
->>>>>>> a88061565070884c8c679c182313dd25588d65a5
 
+/*
+* Test 17
+* It will try to create with a long name two queues with the same long name
+* Then it will be removed and added again
+*/
+bool test17()
+{
+    tests++;
+    size_t queue_len = 1000;
+    //char *queue = (char *)randomstr(queue_len);
+    char *queue = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    
+    printf("%lu\n", strlen(queue));
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (c(queue) == 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (d(queue) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    } 
+    if (c(queue) < 0)
+    {
+        r panic(ERR_CREATING);
+    }
+    if (d(queue) < 0)
+    {
+        r panic(ERR_DESTROYING);
+    }
+    return true;
+}
 
 int main(int argc, char *argv[])
 {
-<<<<<<< HEAD
-    int n;
-    char *op, *cola;
-    do
-    {
-        printf("\nSeleccione nombre de cola y operación (ctrl-D para terminar)\n\tC:create|D:destroy|P:put\n\tG:get no bloqueante|B:get bloqueante\n");
-        op = cola = NULL;
-        n = scanf("%ms%ms", &cola, &op);
-        if (n == 2)
-        {
-            switch (op[0])
-            {
-            case 'C':
-                if (createMQ(cola) < 0)
-                    printf("error creando la cola %s\n", cola);
-                else
-                    printf("cola %s creada correctamente\n", cola);
-                break;
-            case 'D':
-                if (destroyMQ(cola) < 0)
-                    printf("error eliminando la cola %s\n", cola);
-                else
-                    printf("cola %s eliminada correctamente\n", cola);
-                break;
-            case 'G':
-            case 'B':;
-                size_t tam;
-                void *mensaje;
-                if (get(cola, &mensaje, &tam, (op[0] == 'B') ? true : false) < 0)
-                    printf("error leyendo de la cola %s\n", cola);
-                else
-                {
-                    printf("lectura de la cola %s correcta\n", cola);
-                    if (tam)
-                    {
-                        write(1, mensaje, tam);
-                        free(mensaje);
-                    }
-                    else
-                        printf("no hay mensajes\n");
-                }
-                break;
-            case 'P':
-                printf("Introduzca un mensaje terminado con 'return': ");
-                char *linea = NULL;
-                size_t n = 0;
-                int leido;
-                do
-                {
-                    leido = getline(&linea, &n, stdin);
-                } while (leido < 2);
-                if (put(cola, linea, leido) < 0)
-                    printf("error escribiendo en la cola %s\n", cola);
-                else
-                    printf("escritura en la cola %s correcta\n", cola);
-                free(linea);
-                break;
-            default:
-                printf("operación no válida\n");
-            }
-            free(cola);
-            free(op);
-        }
-    } while (n != EOF);
-=======
     printf("\n\nTests:\n");
+    /*
     if (!test1())
     {
         test_error();
@@ -923,10 +915,13 @@ int main(int argc, char *argv[])
     if (!test16())
     {
         test_error();
+    };*/
+    if (!test17())
+    {
+        test_error();
     };
 
     double percentage = (tests - e) * 100 / tests;
     printf("%.2f %% tests passed\nRemember to check server side\n", percentage);
->>>>>>> a88061565070884c8c679c182313dd25588d65a5
     return 0;
 }

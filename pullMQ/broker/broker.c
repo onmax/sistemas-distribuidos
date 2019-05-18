@@ -88,35 +88,6 @@ void print_message(const void *message, size_t size)
     }
 }
 
-void print_name(const char *name)
-{
-	if (strlen(name) >= 30)
-	{
-		char res[50];
-		strncpy(res, name, 30);
-		printf("%s...(%lu): \n", res, strlen(name));
-	}
-	else
-	{
-		printf("%s(%lu)\n", name, strlen(name));
-	}
-}
-
-void print_message(const void *message, size_t size)
-{
-	if (size >= 30)
-	{
-		void *res;
-		res = malloc(50);
-		memcpy(res, message, 30);
-		printf("\t%s...(%lu)\n", (char *)res, size);
-		//free(res);
-	}
-	else
-	{
-		printf("\t%s(%lu)\n", (char *)message, size);
-	}
-}
 
 int get_index(const char *name)
 {
@@ -210,8 +181,8 @@ int queue_destroy(Queue *q)
 
 	while (head != NULL)
 	{
-		//free(head->msg);
-		//free(head);
+		free(head->msg);
+		free(head);
 		head = head->next;
 	}
 	return 0;
@@ -227,7 +198,7 @@ int destroyMQ(const char *name)
 		return -1;
 	}
 	q = queues.array[index];
-	//free(queues.array[index].name);
+	free(queues.array[index].name);
 	queue_destroy(&q);
 
 	queues.size--;
@@ -245,7 +216,7 @@ int destroyMQ(const char *name)
 			queues.array + index + 1,
 			(queues.size - index) * sizeof(Queue));
 
-	//free(queues.array);
+	free(queues.array);
 	queues.array = temp;
 	return 0;
 }
@@ -261,7 +232,7 @@ int awaiting_arr_pop(Queue *q, const void *msg, size_t size)
 		q->awaiting + 1,
 		q->n_awaiting * sizeof(int));
 
-	//free(q->awaiting);
+	free(q->awaiting);
 	q->awaiting = temp;
 
 	size_t serialized_size = GET + size + sizeof(size);
@@ -468,7 +439,7 @@ Request deserialize(char *serialized)
 	serialized += sizeof(request.queue_name_len);
 
 	request.queue_name = malloc(request.queue_name_len + 1);
-	// TODO strcpy  strcat
+	// TODO: maybe chatn to strcat??
 	memcpy(request.queue_name, serialized, request.queue_name_len);
 	request.queue_name[request.queue_name_len] = '\0';
 	serialized += request.queue_name_len;
@@ -550,7 +521,7 @@ int process_request(const unsigned int clientfd)
 		return 1;
 	}
 
-	//free(request_serialized);
+	free(request_serialized);
 	size_t size = sizeof(status) + (request.operation == GET && status == 0 ? (msg_len + sizeof(msg_len)) : 0);
 	size_t offset = 0;
 	char *response_serialized = 0;
@@ -579,17 +550,11 @@ int process_request(const unsigned int clientfd)
 	{
 		return -1;
 	}
-<<<<<<< HEAD
-
-	//free(response_serialized);
-=======
-	free(request.queue_name);
 	free(response_serialized);
->>>>>>> a88061565070884c8c679c182313dd25588d65a5
 	msg = 0;
 	if (request.operation == PUT)
 	{
-		//free(request.msg);
+		free(request.msg);
 	}
 
 	return 0;
