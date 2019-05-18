@@ -43,9 +43,9 @@ typedef struct
 	Queue *array;
 	int size;
 } Queues;
-
-int queue_create(Queue *q, const char *name);
-int createMQ(const char *name);
+//TODO reorganize functions
+int queue_create(Queue *q, char *name);
+int createMQ(char *name);
 int queue_destroy(Queue *q);
 int destroyMQ(const char *name);
 int queue_push(Queue *q, const void *msg, size_t tam);
@@ -58,7 +58,38 @@ void print_message(const void *message, size_t size);
 void print_everything();
 
 Queues queues;
+// TODO: initialized var could be removed
 bool initialized = false;
+
+void print_name(const char *name)
+{
+	if (strlen(name) >= 30)
+	{
+		char res[50];
+		strncpy(res, name, 30);
+		printf("%s...(%lu): \n", res, strlen(name));
+	}
+	else
+	{
+		printf("%s(%lu)\n", name, strlen(name));
+	}
+}
+
+void print_message(const void *message, size_t size)
+{
+	if (size >= 30)
+	{
+		void *res;
+		res = malloc(50);
+		memcpy(res, message, 30);
+		printf("\t%s...(%lu)\n", (char *)res, size);
+		//free(res);
+	}
+	else
+	{
+		printf("\t%s(%lu)\n", (char *)message, size);
+	}
+}
 
 int get_index(const char *name)
 {
@@ -90,13 +121,14 @@ int queue_search_node(Queue *q, struct Node *node, struct Node **result)
 	return -1;
 }
 
-int queue_create(Queue *q, const char *name)
+int queue_create(Queue *q, char *name)
 {
 	// TODO check malloc
 	Queue *temp;
 	temp = (Queue *)malloc(sizeof(Queue));
-	temp->name = (char *)malloc(strlen(name));
-	strcpy(temp->name, name);
+	//temp->name = (char *)malloc(strlen(name));
+	//strcpy(temp->name, name);
+	temp->name = name;
 	temp->first = NULL;
 	temp->last = NULL;
 	temp->awaiting = malloc(0);
@@ -105,7 +137,7 @@ int queue_create(Queue *q, const char *name)
 	return 0;
 }
 
-int createMQ(const char *name)
+int createMQ(char *name)
 {
 	if (initialized == false)
 	{
@@ -142,7 +174,6 @@ int createMQ(const char *name)
 
 	// Meter la cola en el array
 	queues.array[queues.size - 1] = queue;
-
 	return 0;
 }
 
@@ -152,8 +183,8 @@ int queue_destroy(Queue *q)
 
 	while (head != NULL)
 	{
-		free(head->msg);
-		free(head);
+		//free(head->msg);
+		//free(head);
 		head = head->next;
 	}
 	return 0;
@@ -169,7 +200,7 @@ int destroyMQ(const char *name)
 		return -1;
 	}
 	q = queues.array[index];
-	free(queues.array[index].name);
+	//free(queues.array[index].name);
 	queue_destroy(&q);
 
 	queues.size--;
@@ -187,7 +218,7 @@ int destroyMQ(const char *name)
 			queues.array + index + 1,
 			(queues.size - index) * sizeof(Queue));
 
-	free(queues.array);
+	//free(queues.array);
 	queues.array = temp;
 	return 0;
 }
@@ -203,7 +234,7 @@ int awaiting_arr_pop(Queue *q, const void *msg, size_t size)
 		q->awaiting + 1,
 		q->n_awaiting * sizeof(int));
 
-	free(q->awaiting);
+	//free(q->awaiting);
 	q->awaiting = temp;
 
 	size_t serialized_size = GET + size + sizeof(size);
@@ -240,7 +271,8 @@ int queue_push(Queue *q, const void *msg, size_t size)
 {
 	struct Node *node;
 	node = (struct Node *)malloc(sizeof(struct Node));
-	node->msg = (void *)malloc(size);
+	node->msg = malloc(size);
+	//TODO
 	memcpy(node->msg, msg, size);
 	node->size = size;
 
@@ -356,7 +388,7 @@ void print_everything()
 		queue = queues.array[i];
 		printf("  %d. ", i);
 		print_name(queue.name);
-		printf("sockets awaiting: [");
+		printf("\tsockets awaiting: [");
 		for (int j = 0; j < queue.n_awaiting; j++)
 		{
 			printf("%d, ", queue.awaiting[j]);
@@ -396,36 +428,35 @@ int send_error(int clientfd)
 	return 0;
 }
 
-Request deserialize(char serialized[])
+Request deserialize(char *serialized)
 {
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
 
 	Request request;
 
-	char *operation = serialized;
-	request.operation = *((int *)operation);
+	request.operation = *((int *)serialized);
+	serialized += sizeof(request.operation);
 
-	char *queue_name_len = operation + sizeof(int);
-	request.queue_name_len = *((size_t *)queue_name_len);
+	request.queue_name_len = *((size_t *)serialized);
+	serialized += sizeof(request.queue_name_len);
 
-	void *queue_name = queue_name_len + sizeof(size_t);
-	request.queue_name = malloc(request.queue_name_len);
-	memcpy(request.queue_name, queue_name, request.queue_name_len);
+	request.queue_name = malloc(request.queue_name_len + 1);
+	// TODO strcpy  strcat
+	memcpy(request.queue_name, serialized, request.queue_name_len);
 	request.queue_name[request.queue_name_len] = '\0';
+	serialized += request.queue_name_len;
 
 	if (request.operation == PUT)
 	{
-		char *msg_len = queue_name + request.queue_name_len;
-		request.msg_len = *((size_t *)msg_len);
+		request.msg_len = *((size_t *)serialized);
+		serialized += sizeof(request.msg_len);
 
-		void *msg = msg_len + sizeof(size_t);
 		request.msg = malloc(request.msg_len);
-		memcpy(request.msg, msg, request.msg_len);
+		memcpy(request.msg, serialized, request.msg_len);
 	}
 	else if (request.operation == GET)
 	{
-		char *blocking = queue_name + request.queue_name_len;
-		request.blocking = *((char *)blocking);
+		request.blocking = *((char *)serialized);
 	}
 	return request;
 }
@@ -447,12 +478,14 @@ int process_request(const unsigned int clientfd)
 	char *request_serialized = malloc(request_len);
 	if (request_serialized == NULL)
 	{
+		// TODO free serialized
 		send_error(clientfd);
 		return -1;
 	}
 
 	if (recv(clientfd, request_serialized, request_len, MSG_WAITALL) < 0)
 	{
+		// TODO free serialized
 		send_error(clientfd);
 		return -1;
 	}
@@ -490,7 +523,8 @@ int process_request(const unsigned int clientfd)
 	{
 		return 1;
 	}
-	free(request_serialized);
+
+	//free(request_serialized);
 	size_t size = sizeof(status) + (request.operation == GET && status == 0 ? (msg_len + sizeof(msg_len)) : 0);
 	size_t offset = 0;
 	char *response_serialized = 0;
@@ -519,12 +553,14 @@ int process_request(const unsigned int clientfd)
 	{
 		return -1;
 	}
-	free(response_serialized);
+
+	//free(response_serialized);
 	msg = 0;
 	if (request.operation == PUT)
 	{
-		free(request.msg);
+		//free(request.msg);
 	}
+
 	return 0;
 }
 
@@ -564,6 +600,7 @@ int create_server(int port)
 
 	while (1)
 	{
+
 		int clientfd;
 		struct sockaddr_in client_addr;
 		socklen_t addrlen = sizeof(client_addr);
@@ -572,7 +609,8 @@ int create_server(int port)
 		printf("\n-----------------------------------------------\n");
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 		int status = process_request(clientfd);
-		print_everything();
+		if (queues.size != 1)
+			print_everything();
 		printf("-----------------------------------------------\n");
 		if (status != 1)
 		{

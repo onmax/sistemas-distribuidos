@@ -98,7 +98,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 		offset += sizeof(char);
 	}
-
+	// change to int
 	uint32_t size_net = htonl(size);
 
 	if (send(socket_fd, &size_net, sizeof(size_t), 0) < 0)
