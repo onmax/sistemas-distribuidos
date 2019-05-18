@@ -19,7 +19,7 @@ typedef struct
 	char *queue_name;
 	size_t msg_len;
 	void *msg;
-	char blocking; // It a char to save memory. Char is 1B, instead of bool which is 4B
+	bool blocking;
 } Request;
 
 struct Node
@@ -56,6 +56,7 @@ int queue_search_node(Queue *q, struct Node *node, struct Node **result);
 void print_name(const char *name);
 void print_message(const void *message, size_t size);
 void print_everything();
+int send_error(int clientfd);
 
 Queues queues;
 // TODO: initialized var could be removed
@@ -65,11 +66,11 @@ void print_name(const char *name)
     if(strlen(name) >= 30){
         char res[50];
         strncpy(res, name, 30);
-        printf("%s...(%lu): \n", res, strlen(name));
+        printf("%s...(%lu): ", res, strlen(name));
     }
     else
     {
-        printf("%s(%lu)\n", name, strlen(name));
+        printf("%s(%lu)", name, strlen(name));
     }
 }
 
@@ -96,11 +97,11 @@ int get_index(const char *name)
 	{
 		if (strcmp(queues.array[i].name, name) == 0)
 		{
-			printf(" in position %d\n", i + 1);
+			printf(" in position %d. ", i + 1);
 			return i;
 		}
 	}
-	printf(" which has not been found.\n");
+	printf(" which has not been found. ");
 	return -1;
 }
 
@@ -178,6 +179,13 @@ int createMQ(char *name)
 int queue_destroy(Queue *q)
 {
 	struct Node *head = q->first;
+
+	for(int i = 0; i < q->n_awaiting; i++)
+	{
+		printf("\nSending error to %d\n", q->awaiting[i]);
+		send_error(q->awaiting[i]);
+	}
+	free(q->awaiting);
 
 	while (head != NULL)
 	{
@@ -324,6 +332,7 @@ int queue_pop(Queue *q, void **msg, size_t *tam, bool blocking, int client_fd)
 	{
 		if (blocking)
 		{
+			printf(":blocked:");
 			awaiting_arr_push(q, client_fd);
 			return 1;
 		}
@@ -409,10 +418,8 @@ void print_everything()
 
 int send_error(int clientfd)
 {
-	printf("Sending error\n");
-	// TODO htons ??
-	int i = -1;
-	size_t size = sizeof(i);
+	int i = 10;
+	uint32_t size = htonl(sizeof(i));
 	if (send(clientfd, &size, sizeof(size), 0) < 0)
 	{
 		return -1;
@@ -422,7 +429,6 @@ int send_error(int clientfd)
 	{
 		return -1;
 	}
-	printf("Error sended\n");
 	return 0;
 }
 
@@ -454,7 +460,8 @@ Request deserialize(char *serialized)
 	}
 	else if (request.operation == GET)
 	{
-		request.blocking = *((char *)serialized);
+		request.blocking = *((char *)serialized) == '1';
+		printf(" IZ block %d\n", request.blocking);
 	}
 	return request;
 }
@@ -515,7 +522,7 @@ int process_request(const unsigned int clientfd)
 		status = get(request.queue_name, &msg, &msg_len, request.blocking, clientfd);
 		break;
 	}
-
+	printf("\n");
 	if (status == 1)
 	{
 		return 1;
