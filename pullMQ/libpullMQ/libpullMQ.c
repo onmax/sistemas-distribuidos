@@ -54,7 +54,6 @@ int get_connected_socket()
 	return socket_fd;
 }
 
-//TODO operation type short?
 int send_request(const unsigned int operation, const char *queue_name,
 				 const void *put_msg, size_t put_msg_len,
 				 void **get_msg, size_t *get_msg_len, bool blocking)
@@ -66,7 +65,8 @@ int send_request(const unsigned int operation, const char *queue_name,
 		return -1;
 	}
 	size_t size = sizeof(operation) +
-				  strlen(queue_name) + sizeof(strlen(queue_name)) + (operation == PUT ? put_msg_len + sizeof(put_msg_len) : 0) +
+				  strlen(queue_name) + sizeof(strlen(queue_name)) +
+				  (operation == PUT ? put_msg_len + sizeof(put_msg_len) : 0) +
 				  (operation == GET ? sizeof(char) : 0);
 	// Serialization
 	// https://stackoverflow.com/questions/15707933/how-to-serialize-a-struct-in-c
@@ -98,7 +98,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 		offset += sizeof(char);
 	}
-	// change to int
+
 	uint32_t size_net = htonl(size);
 
 	if (send(socket_fd, &size_net, sizeof(size_t), 0) < 0)
@@ -110,6 +110,7 @@ int send_request(const unsigned int operation, const char *queue_name,
 		return -1;
 	}
 	free(serialized);
+
 	size_t reply_len = 0;
 	uint32_t reply_len32 = 0;
 	if (recv(socket_fd, &reply_len32, sizeof(size_t), MSG_WAITALL) < 0)
@@ -136,7 +137,6 @@ int send_request(const unsigned int operation, const char *queue_name,
 		free(reply);
 		return -1;
 	}
-
 	if (status == GET)
 	{
 		*get_msg_len = 0;
@@ -144,9 +144,11 @@ int send_request(const unsigned int operation, const char *queue_name,
 
 		char *msg_len = reply + sizeof(int);
 		*get_msg_len = *((size_t *)msg_len);
+
 		char *msg = msg_len + sizeof(size_t);
 		*get_msg = malloc(*get_msg_len);
 		memcpy(*get_msg, msg, *get_msg_len);
+		printf("msg %s\n", (char *)*get_msg);
 	}
 	free(reply);
 	return 0;
