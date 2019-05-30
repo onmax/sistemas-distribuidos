@@ -155,6 +155,7 @@ int send_response(int client_fd, void *data, size_t size);
 // name and name_len. See Request struct for further info
 Request deserialize(char *serialized);
 
+// TODO
 int serialize(int operation, int status, void *msg, size_t msg_len, char **serialized, size_t *serialized_len);
 
 // For every connection from a client it will receive data,
