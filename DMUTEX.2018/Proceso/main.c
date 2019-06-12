@@ -43,6 +43,7 @@ typedef struct
 
 clock_data *get_clock(int *clocks, int msg_type, int process_index, int nprocesses)
 {
+  int i;
   clock_data *clock;
 
   clock = malloc(sizeof(clock_data));
@@ -50,7 +51,7 @@ clock_data *get_clock(int *clocks, int msg_type, int process_index, int nprocess
   clock->index = process_index;
   clock->n_clocks = nprocesses;
   clock->clocks = malloc(sizeof(int) * clock->n_clocks);
-  for (int i = 0; i < clock->n_clocks; i++)
+  for (i = 0; i < clock->n_clocks; i++)
     clock->clocks[i] = clocks[i];
   return clock;
 }
@@ -73,7 +74,8 @@ int send_msg(clock_data *clock, int port)
 
 int get_index(Process *processes, int nprocesses, char *target)
 {
-  for (int i = 0; i < nprocesses; i++)
+  int i;
+  for (i = 0; i < nprocesses; i++)
     if (!strcmp(processes[i].proc, target))
       return i;
   return -1;
@@ -172,14 +174,13 @@ int main(int argc, char *argv[])
     else if (!strcmp(task, "GETCLOCK"))
     {
       fprintf(stdout, "%s: LC[", iam);
-      for (int i = 0; i < nclocks - 1; i++)
+      int i;
+      for (i = 0; i < nclocks - 1; i++)
         fprintf(stdout, "%d,", clocks[i]);
       fprintf(stdout, "%d]\n", clocks[nclocks - 1]);
     }
     else if (!strcmp(task, "RECEIVE"))
     {
-
-      /* Recibe un mensaje */
       struct sockaddr_in clock_address;
       clock_data *clock_received;
       clock_received = malloc(sizeof(clock_data));
@@ -190,7 +191,8 @@ int main(int argc, char *argv[])
       // Obtiene el máximo de cada reloj
       if (clock_received->msg_type == CLOCK_UPDATE)
       {
-        for (int i = 0; i < clock_received->n_clocks; i++)
+        int i;
+        for (i = 0; i < clock_received->n_clocks; i++)
           if (clock_received->clocks[i] > clocks[i])
             clocks[i] = clock_received->clocks[i];
       }
@@ -199,24 +201,6 @@ int main(int argc, char *argv[])
       else if (clock_received->msg_type == LOCK_MSG)
         fprintf(stdout, "%s: RECEIVE(LOCK,%s)\n", iam, processes[clock_received->index].proc);
       tick(clocks, current_clock, iam);
-    }
-    else if (!strcmp(task, "LOCK"))
-    {
-      tick(clocks, current_clock, iam);
-
-      for (int i = 0; i < nprocesses; i++)
-      {
-        if (i != current_clock)
-        {
-          clock_data *clock;
-          clock = get_clock(clocks, LOCK_MSG, i, nprocesses);
-          send_msg(clock, processes[i].port);
-          fprintf(stdout, "%s: SEND(LOCK,%s)\n", iam, processes[i].proc);
-        }
-      }
-    }
-    else if (!strcmp(task, "UNLOCK"))
-    {
     }
     else if (!strcmp(task, "MESSAGETO"))
     {
@@ -233,6 +217,25 @@ int main(int argc, char *argv[])
       clock = get_clock(clocks, MSG, current_clock, nprocesses);
       send_msg(clock, processes[i].port);
       fprintf(stdout, "%s: SEND(MSG,%s)\n", iam, target_process);
+    }
+    else if (!strcmp(task, "LOCK"))
+    {
+      tick(clocks, current_clock, iam);
+      int i;
+      for (i = 0; i < nprocesses; i++)
+      {
+        if (i != current_clock)
+        {
+          clock_data *clock;
+          clock = get_clock(clocks, LOCK_MSG, i, nprocesses);
+          send_msg(clock, processes[i].port);
+          fprintf(stdout, "%s: SEND(LOCK,%s)\n", iam, processes[i].proc);
+        }
+      }
+    }
+    else if (!strcmp(task, "UNLOCK"))
+    {
+      // TODO
     }
     else if (!strcmp(task, "FINISH"))
     {
